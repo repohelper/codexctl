@@ -14,8 +14,8 @@ use crate::utils::files::{copy_dir_recursive, copy_profile_files};
 /// 1. `ProfileTransaction::new(target_dir)` – allocate staging space.
 /// 2. `stage_profile(src, files)` – populate staging with profile files.
 /// 3. `commit()` – atomically swap staging → target (old target saved internally).
-/// 4a. `cleanup_original()` – drop the pre-commit snapshot when no longer needed.
-/// 4b. `rollback()` – restore the pre-commit snapshot (can be called after commit too).
+/// 4. `cleanup_original()` – drop the pre-commit snapshot when no longer needed.
+/// 5. `rollback()` – restore the pre-commit snapshot (can be called after commit too).
 ///
 /// On `Drop`, any un-committed staging directory is removed automatically.
 pub struct ProfileTransaction {

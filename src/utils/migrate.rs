@@ -7,7 +7,6 @@ use crate::utils::config::Config;
 use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Current schema version of codexo
 const CURRENT_SCHEMA_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -112,7 +111,7 @@ async fn migrate_to_v0_4_0(config: &Config, meta: &mut MigrationMeta) -> Result<
             if let Ok(content) = tokio::fs::read_to_string(&profile_json_path).await {
                 if let Ok(mut profile_meta) = serde_json::from_str::<serde_json::Value>(&content) {
                     // Add encrypted field if missing
-                    if !profile_meta.get("encrypted").is_some() {
+                    if profile_meta.get("encrypted").is_none() {
                         profile_meta["encrypted"] = serde_json::json!(false);
                         
                         if let Ok(updated) = serde_json::to_string_pretty(&profile_meta) {
@@ -140,6 +139,7 @@ async fn migrate_to_v0_4_0(config: &Config, meta: &mut MigrationMeta) -> Result<
 }
 
 /// Force a full migration check and repair
+#[allow(dead_code)]
 pub async fn repair_profiles(config: &Config) -> Result<()> {
     tracing::info!("Running profile repair...");
     

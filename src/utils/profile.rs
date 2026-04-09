@@ -143,6 +143,7 @@ impl Profile {
     ///
     /// Decrypts auth.json if profile is encrypted and passphrase is provided.
     /// # Errors
+    #[allow(dead_code)]
     pub fn load_from_disk_encrypted<P: AsRef<Path>>(
         dir: P,
         passphrase: Option<&String>,

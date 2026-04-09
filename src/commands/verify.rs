@@ -65,6 +65,7 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum ProfileStatus {
     Valid { email: String, plan: String },
     Invalid(String),

@@ -126,6 +126,8 @@ correctness = { level = "deny", priority = -1 }
 perf = { level = "warn", priority = -1 }
 suspicious = { level = "warn", priority = -1 }
 style = { level = "allow", priority = -1 }
+# Multiple versions can happen with optional features
+multiple_crate_versions = { level = "allow" }
 
 [lints.rustdoc]
 all = "warn"

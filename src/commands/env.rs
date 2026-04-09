@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::utils::config::Config;
 use anyhow::Result;
 use colored::Colorize as _;

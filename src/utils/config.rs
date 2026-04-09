@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result};

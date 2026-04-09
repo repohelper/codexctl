@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::utils::config::Config;
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
