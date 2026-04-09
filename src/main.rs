@@ -1,4 +1,4 @@
-//! Codexo - Manage multiple ChatGPT OAuth accounts for OpenAI Codex CLI
+//! PolyCLI - Universal AI CLI Profile Manager
 
 use std::path::PathBuf;
 
@@ -12,13 +12,13 @@ mod utils;
 use commands::{backup, delete, list, load, run, save, status};
 use utils::config::Config;
 
-/// Codexo - Manage multiple ChatGPT OAuth accounts
+/// PolyCLI - Universal AI CLI Profile Manager
 #[derive(Parser, Debug, Clone)]
 #[command(
-    name = "codexo",
-    bin_name = "codexo",
+    name = "polycli",
+    bin_name = "polycli",
     version,
-    about = "Manage multiple ChatGPT OAuth accounts for OpenAI Codex CLI",
+    about = "Universal AI CLI Profile Manager - Manage multiple AI CLI accounts",
     long_about = None
 )]
 #[command(arg_required_else_help = true)]
@@ -31,11 +31,11 @@ pub struct Cli {
     verbose: bool,
 
     /// Config directory override
-    #[arg(long, global = true, env = "CODEXO_DIR", value_hint = ValueHint::DirPath)]
+    #[arg(long, global = true, env = "POLYCLI_DIR", value_hint = ValueHint::DirPath)]
     config_dir: Option<PathBuf>,
 
     /// Quiet mode (minimal output)
-    #[arg(short, long, global = true, env = "CODEXO_QUIET")]
+    #[arg(short, long, global = true, env = "POLYCLI_QUIET")]
     quiet: bool,
 }
 
@@ -55,7 +55,7 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase (optional, leave empty for no encryption)
-        #[arg(short = 'p', long, env = "CODEXO_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
         passphrase: Option<String>,
     },
 
@@ -71,7 +71,7 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
         /// Passphrase to decrypt profile (if encrypted)
-        #[arg(short = 'p', long, env = "CODEXO_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
         passphrase: Option<String>,
     },
 
@@ -234,7 +234,7 @@ async fn main() -> Result<()> {
         .with_level(true)
         .init();
 
-    debug!("Starting codexo");
+    debug!("Starting polycli");
     info!("Config directory: {:?}", cli.config_dir);
 
     let config = Config::new(cli.config_dir.clone())?;

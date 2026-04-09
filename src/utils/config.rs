@@ -52,12 +52,12 @@ impl Config {
         let profiles_dir = if let Some(dir) = custom_dir {
             dir
         } else {
-            ProjectDirs::from("com", "codexo", "codexo")
+            ProjectDirs::from("com", "repohelper", "polycli")
                 .map(|dirs| dirs.data_dir().to_path_buf())
                 .unwrap_or_else(|| {
                     dirs::home_dir()
                         .expect("Could not find home directory")
-                        .join(".codexos")
+                        .join(".polycli")
                 })
         };
 

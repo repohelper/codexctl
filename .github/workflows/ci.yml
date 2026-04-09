@@ -65,20 +65,20 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czvf ../../../codexo-${{ matrix.target }}.tar.gz codexo cx
+          tar czvf ../../../polycli-${{ matrix.target }}.tar.gz polycli poly
           cd ../../..
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          7z a ../../../codexo-${{ matrix.target }}.zip codexo.exe cx.exe
+          7z a ../../../polycli-${{ matrix.target }}.zip polycli.exe poly.exe
           cd ../../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codexo-${{ matrix.target }}
+          name: polycli-${{ matrix.target }}
           path: |
-            codexo-*.tar.gz
-            codexo-*.zip
+            polycli-*.tar.gz
+            polycli-*.zip

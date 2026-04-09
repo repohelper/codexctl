@@ -12,7 +12,7 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
 
     if !profiles_dir.exists() {
         anyhow::bail!(
-            "No profiles directory found. Create profiles first with: codexo save <name>"
+            "No profiles directory found. Create profiles first with: poly save <name>"
         );
     }
 

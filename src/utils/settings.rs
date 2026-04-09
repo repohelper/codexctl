@@ -1,6 +1,6 @@
-//! Global configuration management for codexo
+//! Global configuration management for polycli
 //!
-//! Configuration is stored at `~/.config/codexo/config.toml`
+//! Configuration is stored at `~/.config/polycli/config.toml`
 
 #![allow(dead_code)]
 
@@ -171,8 +171,8 @@ impl Settings {
     #[must_use]
     pub fn config_path() -> PathBuf {
         dirs::config_dir()
-            .map(|d| d.join("codexo").join("config.toml"))
-            .unwrap_or_else(|| PathBuf::from(".").join(".codexo").join("config.toml"))
+            .map(|d| d.join("polycli").join("config.toml"))
+            .unwrap_or_else(|| PathBuf::from(".").join(".polycli").join("config.toml"))
     }
 
     /// Get the profile for a given directory path (for auto-switch feature)
@@ -246,7 +246,7 @@ pub fn init_config() -> Result<()> {
     }
 
     let example_config = r#"# Codexo Configuration
-# Location: ~/.config/codexo/config.toml
+# Location: ~/.config/polycli/config.toml
 
 # Default profile to load when starting a new shell
 # default_profile = "work"
@@ -294,7 +294,7 @@ weekly_threshold = 80
         .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
 
     println!("✓ Created config file at {}", config_path.display());
-    println!("  Edit it to customize your codexo settings");
+    println!("  Edit it to customize your polycli settings");
 
     Ok(())
 }
@@ -371,7 +371,7 @@ auto_backup = false
     #[test]
     fn test_config_path() {
         let path = Settings::config_path();
-        assert!(path.to_string_lossy().contains("codexo"));
+        assert!(path.to_string_lossy().contains("polycli"));
         assert!(path.to_string_lossy().contains("config.toml"));
     }
 }

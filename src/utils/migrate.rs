@@ -8,7 +8,7 @@ use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-/// Current schema version of codexo
+/// Current schema version of polycli
 const CURRENT_SCHEMA_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Migration metadata stored in profiles directory

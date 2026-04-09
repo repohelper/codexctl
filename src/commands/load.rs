@@ -66,7 +66,7 @@ async fn do_load(
 
     if !profile_dir.exists() {
         anyhow::bail!(
-            "Profile '{}' not found. Use 'codexo list' to see available profiles.",
+            "Profile '{}' not found. Use 'poly list' to see available profiles.",
             name
         );
     }
@@ -240,7 +240,7 @@ async fn auto_switch(
     let profiles_dir = config.profiles_dir();
     if !profiles_dir.exists() {
         anyhow::bail!(
-            "No profiles directory found. Create profiles first with: codexo save <name>"
+            "No profiles directory found. Create profiles first with: poly save <name>"
         );
     }
 
@@ -463,7 +463,7 @@ async fn load_previous_profile(
 
     if !marker.exists() {
         anyhow::bail!(
-            "No previous profile. Switch to a profile first before using 'codexo load -'"
+            "No previous profile. Switch to a profile first before using 'poly load -'"
         );
     }
 

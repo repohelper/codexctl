@@ -14,19 +14,19 @@ pub fn generate_completions(shell: &str) -> Result<String> {
 
     match shell {
         "bash" => {
-            generate(shells::Bash, &mut cmd, "codexo", &mut buf);
+            generate(shells::Bash, &mut cmd, "polycli", &mut buf);
         }
         "zsh" => {
-            generate(shells::Zsh, &mut cmd, "codexo", &mut buf);
+            generate(shells::Zsh, &mut cmd, "polycli", &mut buf);
         }
         "fish" => {
-            generate(shells::Fish, &mut cmd, "codexo", &mut buf);
+            generate(shells::Fish, &mut cmd, "polycli", &mut buf);
         }
         "powershell" => {
-            generate(shells::PowerShell, &mut cmd, "codexo", &mut buf);
+            generate(shells::PowerShell, &mut cmd, "polycli", &mut buf);
         }
         "elvish" => {
-            generate(shells::Elvish, &mut cmd, "codexo", &mut buf);
+            generate(shells::Elvish, &mut cmd, "polycli", &mut buf);
         }
         _ => {
             anyhow::bail!(
@@ -49,14 +49,14 @@ fn completion_install_path(shell: &str) -> Result<(PathBuf, &'static str)> {
                 .ok_or_else(|| anyhow::anyhow!("Could not determine data directory"))?
                 .join("bash-completion")
                 .join("completions");
-            Ok((dir, "codexo"))
+            Ok((dir, "polycli"))
         }
         "zsh" => {
             let dir = dirs::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?
                 .join(".zsh")
                 .join("completions");
-            Ok((dir, "_codexo"))
+            Ok((dir, "_polycli"))
         }
         "fish" => {
             // Linux/macOS: ~/.config/fish/completions
@@ -65,14 +65,14 @@ fn completion_install_path(shell: &str) -> Result<(PathBuf, &'static str)> {
                 .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
                 .join("fish")
                 .join("completions");
-            Ok((dir, "codexo.fish"))
+            Ok((dir, "polycli.fish"))
         }
         "powershell" => {
             // PowerShell profile directory varies by OS:
             //   Windows:      ~/Documents/PowerShell/Completions
             //   Linux/macOS:  ~/.config/powershell/Completions
             let dir = powershell_completion_dir()?;
-            Ok((dir, "codexo.ps1"))
+            Ok((dir, "polycli.ps1"))
         }
         _ => {
             anyhow::bail!(
@@ -194,7 +194,7 @@ mod tests {
         let result = completion_install_path("bash");
         assert!(result.is_ok());
         let (dir, filename) = result.unwrap();
-        assert_eq!(filename, "codexo");
+        assert_eq!(filename, "polycli");
         // Path should contain bash-completion
         assert!(dir.to_string_lossy().contains("bash-completion"));
     }
@@ -204,7 +204,7 @@ mod tests {
         let result = completion_install_path("zsh");
         assert!(result.is_ok());
         let (dir, filename) = result.unwrap();
-        assert_eq!(filename, "_codexo");
+        assert_eq!(filename, "_polycli");
         assert!(dir.to_string_lossy().contains("zsh"));
     }
 
@@ -213,7 +213,7 @@ mod tests {
         let result = completion_install_path("fish");
         assert!(result.is_ok());
         let (_, filename) = result.unwrap();
-        assert_eq!(filename, "codexo.fish");
+        assert_eq!(filename, "polycli.fish");
     }
 
     #[test]
@@ -221,7 +221,7 @@ mod tests {
         let result = completion_install_path("powershell");
         assert!(result.is_ok());
         let (dir, filename) = result.unwrap();
-        assert_eq!(filename, "codexo.ps1");
+        assert_eq!(filename, "polycli.ps1");
         let dir_str = dir.to_string_lossy().to_lowercase();
         // On any platform the path should contain "powershell"
         assert!(

@@ -107,7 +107,7 @@ pub async fn execute(config: Config, _quiet: bool) -> Result<()> {
     }
 
     println!("\n{} Setup complete!", "✓".green().bold());
-    println!("  Run {} for more commands", "codexo --help".cyan());
+    println!("  Run {} for more commands", "poly --help".cyan());
 
     Ok(())
 }

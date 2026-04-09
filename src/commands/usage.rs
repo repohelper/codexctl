@@ -289,7 +289,7 @@ async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
         println!();
         println!(
             "{}",
-            "💡 Tip: Use 'codexo load auto' to switch to the best available profile".dimmed()
+            "💡 Tip: Use 'poly load auto' to switch to the best available profile".dimmed()
         );
     }
 
@@ -417,11 +417,11 @@ fn display_limits_info(_info: &UsageInfo) {
     );
     println!(
         "  {}",
-        "• Run 'codexo status' to check current profile".dimmed()
+        "• Run 'poly status' to check current profile".dimmed()
     );
     println!(
         "  {}",
-        "• Use 'codexo backup' before switching profiles".dimmed()
+        "• Use 'poly backup' before switching profiles".dimmed()
     );
 }
 

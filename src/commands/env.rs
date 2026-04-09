@@ -38,7 +38,7 @@ fn shell_escape_powershell(value: &str) -> String {
 ///   (an adjacent empty pair), which is the closest cmd.exe approximation.
 ///
 /// The caller is responsible for wrapping the result in the `set "VAR=…"`
-/// form, e.g. `set "CODEXO=<escaped>"`.
+/// form, e.g. `set "POLYCLI=<escaped>"`.
 fn shell_escape_cmd(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 4);
     for ch in value.chars() {
@@ -64,7 +64,7 @@ pub async fn execute(
 
     if !profile_dir.exists() {
         anyhow::bail!(
-            "Profile '{}' not found. Use 'codexo list' to see available profiles.",
+            "Profile '{}' not found. Use 'poly list' to see available profiles.",
             profile
         );
     }
@@ -72,21 +72,21 @@ pub async fn execute(
     if unset {
         match shell.as_str() {
             "fish" => {
-                println!("set -e CODEXO;");
-                println!("set -e CODEXO_DIR;");
+                println!("set -e POLYCLI;");
+                println!("set -e POLYCLI_DIR;");
             }
             "powershell" | "pwsh" => {
-                println!("Remove-Item Env:CODEXO -ErrorAction SilentlyContinue;");
-                println!("Remove-Item Env:CODEXO_DIR -ErrorAction SilentlyContinue;");
+                println!("Remove-Item Env:POLYCLI -ErrorAction SilentlyContinue;");
+                println!("Remove-Item Env:POLYCLI_DIR -ErrorAction SilentlyContinue;");
             }
             "cmd" | "batch" => {
-                println!("set CODEXO=");
-                println!("set CODEXO_DIR=");
+                println!("set POLYCLI=");
+                println!("set POLYCLI_DIR=");
             }
             _ => {
                 // bash, zsh, etc.
-                println!("unset CODEXO;");
-                println!("unset CODEXO_DIR;");
+                println!("unset POLYCLI;");
+                println!("unset POLYCLI_DIR;");
             }
         }
 
@@ -103,38 +103,38 @@ pub async fn execute(
 
     match shell.as_str() {
         "fish" => {
-            println!("set -x CODEXO {};", shell_escape_bash(&profile));
-            println!("set -x CODEXO_DIR {};", shell_escape_bash(&profile_dir_str));
+            println!("set -x POLYCLI {};", shell_escape_bash(&profile));
+            println!("set -x POLYCLI_DIR {};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
-                "# Or run: eval (codexo env {} --unset) to clear",
+                "# Or run: eval (poly env {} --unset) to clear",
                 shell_escape_bash(&profile)
             );
         }
         "powershell" | "pwsh" => {
-            println!("$env:CODEXO = {};", shell_escape_powershell(&profile));
+            println!("$env:POLYCLI = {};", shell_escape_powershell(&profile));
             println!(
-                "$env:CODEXO_DIR = {};",
+                "$env:POLYCLI_DIR = {};",
                 shell_escape_powershell(&profile_dir_str)
             );
             println!("# Use with: codex");
             println!(
-                "# Or run: codexo env {} --unset | Invoke-Expression to clear",
+                "# Or run: poly env {} --unset | Invoke-Expression to clear",
                 shell_escape_powershell(&profile)
             );
         }
         "cmd" | "batch" => {
-            println!("set \"CODEXO={}\"", shell_escape_cmd(&profile));
-            println!("set \"CODEXO_DIR={}\"", shell_escape_cmd(&profile_dir_str));
+            println!("set \"POLYCLI={}\"", shell_escape_cmd(&profile));
+            println!("set \"POLYCLI_DIR={}\"", shell_escape_cmd(&profile_dir_str));
             println!("REM Use with: codex");
         }
         _ => {
             // bash, zsh, etc.
-            println!("export CODEXO={};", shell_escape_bash(&profile));
-            println!("export CODEXO_DIR={};", shell_escape_bash(&profile_dir_str));
+            println!("export POLYCLI={};", shell_escape_bash(&profile));
+            println!("export POLYCLI_DIR={};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
-                "# Or run: eval $(codexo env {} --unset) to clear",
+                "# Or run: eval $(poly env {} --unset) to clear",
                 shell_escape_bash(&profile)
             );
         }
@@ -151,13 +151,13 @@ pub async fn execute(
         eprintln!("{} This won't affect other terminals!", "ℹ".blue());
         eprintln!();
         eprintln!("Example usage:");
-        eprintln!("  {}", format!("eval $(codexo env {})", profile).yellow());
+        eprintln!("  {}", format!("eval $(poly env {})", profile).yellow());
         eprintln!("  {}  # Uses '{}' profile", "codex".yellow(), profile);
         eprintln!();
         eprintln!("To switch back to default:");
         eprintln!(
             "  {}",
-            format!("eval $(codexo env {} --unset)", profile).yellow()
+            format!("eval $(poly env {} --unset)", profile).yellow()
         );
     }
 

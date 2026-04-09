@@ -128,7 +128,7 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
         if has_profiles {
             "none".to_string()
         } else {
-            "Create one with: codexo save <name>".to_string()
+            "Create one with: poly save <name>".to_string()
         },
     ));
 

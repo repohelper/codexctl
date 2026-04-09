@@ -12,7 +12,7 @@ pub async fn execute(config: Config, detailed: bool, quiet: bool) -> Result<()> 
             println!("{} No profiles found.", "ℹ".blue());
             println!(
                 "  Create your first profile with: {}",
-                "codexo save <name>".cyan()
+                "poly save <name>".cyan()
             );
         }
         return Ok(());
@@ -56,7 +56,7 @@ pub async fn execute(config: Config, detailed: bool, quiet: bool) -> Result<()> 
             println!("{} No profiles found.", "ℹ".blue());
             println!(
                 "  Create your first profile with: {}",
-                "codexo save <name>".cyan()
+                "poly save <name>".cyan()
             );
         }
         return Ok(());
