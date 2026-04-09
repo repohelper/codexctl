@@ -19,19 +19,19 @@ impl RealTimeQuota {
     /// Calculate days until quota reset
     pub fn days_until_reset(&self) -> Option<i64> {
         use chrono::{DateTime, Utc};
-        
+
         self.reset_date.as_ref().and_then(|date| {
             DateTime::parse_from_rfc3339(date)
                 .ok()
                 .map(|d| (d.with_timezone(&Utc) - Utc::now()).num_days())
         })
     }
-    
+
     /// Check if quota is critically low (< 20%)
     pub fn is_critical(&self) -> bool {
         self.percent_used > 80.0
     }
-    
+
     /// Check if quota is low (< 50%)
     pub fn is_low(&self) -> bool {
         self.percent_used > 50.0
@@ -41,44 +41,44 @@ impl RealTimeQuota {
 /// Fetch real-time quota from OpenAI API
 pub async fn fetch_quota(api_key: &str) -> Result<RealTimeQuota> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .get("https://api.openai.com/v1/dashboard/billing/subscription")
         .header("Authorization", format!("Bearer {}", api_key))
         .send()
         .await
         .context("Failed to connect to OpenAI API")?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
         anyhow::bail!("OpenAI API error ({}): {}", status, text);
     }
-    
+
     let data: serde_json::Value = response
         .json()
         .await
         .context("Failed to parse OpenAI API response")?;
-    
+
     // Parse the response
     let account_id = data
         .get("account_id")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
-    
+
     let plan = data
         .get("plan")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
-    
+
     let quota_limit = data
         .get("hard_limit_usd")
         .and_then(|v| v.as_f64())
         .map(|v| (v * 100.0) as u64) // Convert to cents for integer storage
         .unwrap_or(0);
-    
+
     // Fetch usage data
     let usage = fetch_usage(api_key).await.unwrap_or(0);
     let remaining = quota_limit.saturating_sub(usage);
@@ -87,13 +87,13 @@ pub async fn fetch_quota(api_key: &str) -> Result<RealTimeQuota> {
     } else {
         0.0
     };
-    
+
     let reset_date = data
         .get("reset_date")
         .or_else(|| data.get("billing_cycle_anchor"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    
+
     Ok(RealTimeQuota {
         account_id,
         plan,
@@ -108,41 +108,41 @@ pub async fn fetch_quota(api_key: &str) -> Result<RealTimeQuota> {
 /// Fetch current month's usage from OpenAI API
 async fn fetch_usage(api_key: &str) -> Result<u64> {
     use chrono::{Datelike, Utc};
-    
+
     let now = Utc::now();
     let start_of_month = format!("{}-{:02}-01", now.year(), now.month());
     let today = format!("{}-{:02}-{:02}", now.year(), now.month(), now.day());
-    
+
     let client = reqwest::Client::new();
     let url = format!(
         "https://api.openai.com/v1/dashboard/billing/usage?start_date={}&end_date={}",
         start_of_month, today
     );
-    
+
     let response = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", api_key))
         .send()
         .await
         .context("Failed to fetch usage data")?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
         anyhow::bail!("OpenAI API error ({}): {}", status, text);
     }
-    
+
     let data: serde_json::Value = response
         .json()
         .await
         .context("Failed to parse usage response")?;
-    
+
     let total_usage = data
         .get("total_usage")
         .and_then(|v| v.as_f64())
         .map(|v| (v * 100.0) as u64) // Convert to cents
         .unwrap_or(0);
-    
+
     Ok(total_usage)
 }
 
@@ -166,13 +166,13 @@ mod tests {
         let quota = RealTimeQuota {
             account_id: "test".to_string(),
             plan: "personal".to_string(),
-            usage_this_month: 7500,  // $75.00
-            quota_limit: 10000,      // $100.00
-            remaining_quota: 2500,   // $25.00
+            usage_this_month: 7500, // $75.00
+            quota_limit: 10000,     // $100.00
+            remaining_quota: 2500,  // $25.00
             percent_used: 75.0,
             reset_date: None,
         };
-        
+
         assert!(quota.is_low());
         assert!(!quota.is_critical());
         assert_eq!(quota.remaining_quota, 2500);
@@ -184,7 +184,7 @@ mod tests {
             "api_key": "sk-test123",
             "email": "test@example.com"
         });
-        
+
         assert_eq!(extract_api_key(&auth), Some("sk-test123".to_string()));
     }
 
@@ -193,7 +193,7 @@ mod tests {
         let auth = serde_json::json!({
             "access_token": "sk-token456",
         });
-        
+
         assert_eq!(extract_api_key(&auth), Some("sk-token456".to_string()));
     }
 }

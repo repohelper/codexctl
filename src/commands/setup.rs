@@ -78,7 +78,8 @@ pub async fn execute(config: Config, _quiet: bool) -> Result<()> {
                 let name = dialoguer::Input::<String>::new()
                     .with_prompt("Profile name to load")
                     .interact()?;
-                crate::commands::load::execute(config.clone(), name, true, false, false, None).await?;
+                crate::commands::load::execute(config.clone(), name, true, false, false, None)
+                    .await?;
             }
             3 => {
                 let name = dialoguer::Input::<String>::new()

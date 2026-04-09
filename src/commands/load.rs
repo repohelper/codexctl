@@ -28,9 +28,17 @@ pub async fn execute(
 
     // Store current profile name before switching (for later "-" support)
     let current_profile = get_current_profile_name(&config).await;
-    
-    let result = do_load(config.clone(), name.clone(), force, dry_run, quiet, passphrase).await;
-    
+
+    let result = do_load(
+        config.clone(),
+        name.clone(),
+        force,
+        dry_run,
+        quiet,
+        passphrase,
+    )
+    .await;
+
     // If successful, save profile tracking info
     if result.is_ok() && !dry_run {
         if let Some(prev) = current_profile {
@@ -38,7 +46,7 @@ pub async fn execute(
         }
         let _ = save_current_profile(&config, &name).await;
     }
-    
+
     result
 }
 
@@ -152,33 +160,34 @@ async fn do_load(
 
     // Handle encrypted profiles
     let secret_passphrase = passphrase.filter(|p| !p.is_empty());
-    
+
     // If profile is encrypted, decrypt auth.json to a temp location for staging
     let auth_path = profile_dir.join("auth.json");
     let temp_auth_path = profile_dir.join(".auth.json.tmp");
     let mut cleanup_temp = false;
-    
+
     if auth_path.exists() {
         let auth_content = tokio::fs::read(&auth_path).await?;
         if crate::utils::crypto::is_encrypted(&auth_content) {
-            let decrypted = crate::utils::crypto::decrypt(&auth_content, secret_passphrase.as_ref())
-                .context("Failed to decrypt auth.json - wrong passphrase?")?;
+            let decrypted =
+                crate::utils::crypto::decrypt(&auth_content, secret_passphrase.as_ref())
+                    .context("Failed to decrypt auth.json - wrong passphrase?")?;
             tokio::fs::write(&temp_auth_path, decrypted).await?;
             cleanup_temp = true;
         }
     }
-    
+
     // Atomically switch to the new profile using a staged transaction.
     let files_to_copy = get_critical_files();
 
-    let mut txn = ProfileTransaction::new(codex_dir)
-        .context("Failed to initialise profile transaction")?;
+    let mut txn =
+        ProfileTransaction::new(codex_dir).context("Failed to initialise profile transaction")?;
     txn.stage_profile(&profile_dir, files_to_copy)
         .context("Failed to stage profile files")?;
     txn.commit()
         .context("Failed to atomically commit profile")?;
     txn.cleanup_original()?;
-    
+
     // Clean up temp decrypted file if created
     if cleanup_temp {
         let _ = tokio::fs::remove_file(&temp_auth_path).await;
@@ -230,7 +239,9 @@ async fn auto_switch(
 
     let profiles_dir = config.profiles_dir();
     if !profiles_dir.exists() {
-        anyhow::bail!("No profiles directory found. Create profiles first with: codexo save <name>");
+        anyhow::bail!(
+            "No profiles directory found. Create profiles first with: codexo save <name>"
+        );
     }
 
     let mut entries = tokio::fs::read_dir(profiles_dir).await?;
@@ -294,7 +305,9 @@ async fn auto_switch(
                 name.cyan(),
                 usage.email.dimmed(),
                 score,
-                usage.subscription_end.as_ref()
+                usage
+                    .subscription_end
+                    .as_ref()
                     .and_then(|end| calculate_days_remaining(end).ok())
                     .map(|d| d.to_string())
                     .unwrap_or_else(|| "N/A".to_string())
@@ -390,21 +403,28 @@ async fn get_current_profile_name(config: &Config) -> Option<String> {
             }
         }
     }
-    
+
     // Fallback: try to identify from email in auth.json
     let codex_dir = config.codex_dir();
     if let Some(email) = read_email_from_codex_dir(codex_dir).await {
         if let Ok(mut entries) = tokio::fs::read_dir(config.profiles_dir()).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let path = entry.path();
-                if !path.is_dir() || path.file_name().map(|n| n.to_string_lossy().starts_with('.')).unwrap_or(true) {
+                if !path.is_dir()
+                    || path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().starts_with('.'))
+                        .unwrap_or(true)
+                {
                     continue;
                 }
-                
+
                 let name = path.file_name()?.to_string_lossy().to_string();
                 let meta_path = path.join("profile.json");
                 if let Ok(content) = tokio::fs::read_to_string(&meta_path).await {
-                    if let Ok(meta) = serde_json::from_str::<crate::utils::profile::ProfileMeta>(&content) {
+                    if let Ok(meta) =
+                        serde_json::from_str::<crate::utils::profile::ProfileMeta>(&content)
+                    {
                         if meta.email.as_ref() == Some(&email) {
                             return Some(name);
                         }
@@ -413,7 +433,7 @@ async fn get_current_profile_name(config: &Config) -> Option<String> {
             }
         }
     }
-    
+
     None
 }
 
@@ -440,21 +460,35 @@ async fn load_previous_profile(
     passphrase: Option<String>,
 ) -> Result<()> {
     let marker = config.profiles_dir().join(".previous_profile");
-    
+
     if !marker.exists() {
-        anyhow::bail!("No previous profile. Switch to a profile first before using 'codexo load -'");
+        anyhow::bail!(
+            "No previous profile. Switch to a profile first before using 'codexo load -'"
+        );
     }
-    
+
     let previous_name = tokio::fs::read_to_string(&marker).await?;
     let previous_name = previous_name.trim();
-    
+
     if previous_name.is_empty() {
         anyhow::bail!("No previous profile recorded");
     }
-    
+
     if !quiet {
-        println!("{} Quick-switching to previous profile: {}", "↔".cyan(), previous_name.cyan());
+        println!(
+            "{} Quick-switching to previous profile: {}",
+            "↔".cyan(),
+            previous_name.cyan()
+        );
     }
-    
-    Box::pin(execute(config, previous_name.to_string(), force, dry_run, quiet, passphrase)).await
+
+    Box::pin(execute(
+        config,
+        previous_name.to_string(),
+        force,
+        dry_run,
+        quiet,
+        passphrase,
+    ))
+    .await
 }

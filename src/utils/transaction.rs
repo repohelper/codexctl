@@ -44,13 +44,15 @@ impl ProfileTransaction {
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
 
-        std::fs::create_dir_all(&parent).with_context(|| {
-            format!("Failed to create parent directory: {}", parent.display())
-        })?;
+        std::fs::create_dir_all(&parent)
+            .with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
 
         let staging_dir = unique_sibling_path(&parent, ".codex_txn_staging")?;
         std::fs::create_dir_all(&staging_dir).with_context(|| {
-            format!("Failed to create staging directory: {}", staging_dir.display())
+            format!(
+                "Failed to create staging directory: {}",
+                staging_dir.display()
+            )
         })?;
 
         Ok(Self {
@@ -363,7 +365,10 @@ mod tests {
         let orig_path = txn.original_backup_path().map(PathBuf::from);
         assert!(orig_path.is_some());
         let orig_path = orig_path.unwrap();
-        assert!(orig_path.exists(), "original backup should exist after commit");
+        assert!(
+            orig_path.exists(),
+            "original backup should exist after commit"
+        );
 
         txn.cleanup_original().unwrap();
         assert!(

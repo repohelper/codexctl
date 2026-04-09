@@ -8,11 +8,7 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
     let codex_dir = config.codex_dir();
 
     if !quiet {
-        println!(
-            "{} {}",
-            "Codexo".bold(),
-            env!("CARGO_PKG_VERSION")
-        );
+        println!("{} {}", "Codexo".bold(), env!("CARGO_PKG_VERSION"));
         println!();
 
         // Check if codex is installed
@@ -96,4 +92,3 @@ async fn show_profiles_info(config: Config, quiet: bool) -> Result<()> {
 
     Ok(())
 }
-

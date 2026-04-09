@@ -238,7 +238,7 @@ async fn main() -> Result<()> {
     info!("Config directory: {:?}", cli.config_dir);
 
     let config = Config::new(cli.config_dir.clone())?;
-    
+
     // Auto-migrate profiles on startup (silent, no user intervention)
     if let Err(e) = crate::utils::migrate::auto_migrate(&config).await {
         tracing::warn!("Auto-migration warning: {}", e);

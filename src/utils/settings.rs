@@ -172,11 +172,7 @@ impl Settings {
     pub fn config_path() -> PathBuf {
         dirs::config_dir()
             .map(|d| d.join("codexo").join("config.toml"))
-            .unwrap_or_else(|| {
-                PathBuf::from(".")
-                    .join(".codexo")
-                    .join("config.toml")
-            })
+            .unwrap_or_else(|| PathBuf::from(".").join(".codexo").join("config.toml"))
     }
 
     /// Get the profile for a given directory path (for auto-switch feature)

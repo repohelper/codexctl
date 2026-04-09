@@ -113,12 +113,8 @@ pub fn install_completions(shell: &str) -> Result<()> {
 
     // Write completion file
     let file_path = install_dir.join(filename);
-    let mut file = std::fs::File::create(&file_path).with_context(|| {
-        format!(
-            "Failed to create completion file: {}",
-            file_path.display()
-        )
-    })?;
+    let mut file = std::fs::File::create(&file_path)
+        .with_context(|| format!("Failed to create completion file: {}", file_path.display()))?;
     file.write_all(completions.as_bytes())?;
 
     println!("Completions installed to: {}", file_path.display());
@@ -127,10 +123,7 @@ pub fn install_completions(shell: &str) -> Result<()> {
     match shell {
         "bash" => {
             println!("\nAdd this to your ~/.bashrc:");
-            println!(
-                "  source {}",
-                file_path.display()
-            );
+            println!("  source {}", file_path.display());
         }
         "zsh" => {
             let zsh_dir = install_dir.display().to_string();
@@ -188,10 +181,12 @@ mod tests {
     fn test_generate_completions_invalid_shell() {
         let result = generate_completions("cmd");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Unsupported shell"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unsupported shell")
+        );
     }
 
     #[test]

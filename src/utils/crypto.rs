@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use std::io::{Read, Write};
 
 /// Encrypt plaintext with optional passphrase
-/// 
+///
 /// If passphrase is None or empty, returns plaintext unchanged (no encryption).
 pub fn encrypt(plaintext: &[u8], passphrase: Option<&String>) -> Result<Vec<u8>> {
     let passphrase_str = match passphrase {
@@ -17,16 +17,18 @@ pub fn encrypt(plaintext: &[u8], passphrase: Option<&String>) -> Result<Vec<u8>>
             return Ok(plaintext.to_vec());
         }
     };
-    
-    let encryptor = age::Encryptor::with_user_passphrase(secrecy::SecretString::from(passphrase_str));
+
+    let encryptor =
+        age::Encryptor::with_user_passphrase(secrecy::SecretString::from(passphrase_str));
     let mut encrypted = vec![];
-    let mut writer = encryptor.wrap_output(&mut encrypted)
+    let mut writer = encryptor
+        .wrap_output(&mut encrypted)
         .context("Failed to create age encryptor")?;
-    writer.write_all(plaintext)
+    writer
+        .write_all(plaintext)
         .context("Failed to write encrypted data")?;
-    writer.finish()
-        .context("Failed to finalize encryption")?;
-    
+    writer.finish().context("Failed to finalize encryption")?;
+
     // Prepend marker to indicate encryption
     let mut result = b"age-encrypted:v1\n".to_vec();
     result.extend(encrypted);
@@ -34,32 +36,35 @@ pub fn encrypt(plaintext: &[u8], passphrase: Option<&String>) -> Result<Vec<u8>>
 }
 
 /// Decrypt ciphertext with optional passphrase
-/// 
+///
 /// If data is not encrypted (no marker), returns plaintext unchanged.
 /// If data is encrypted and passphrase is None/empty, returns error.
 pub fn decrypt(ciphertext: &[u8], passphrase: Option<&String>) -> Result<Vec<u8>> {
     let marker = b"age-encrypted:v1\n";
-    
+
     if !ciphertext.starts_with(marker) {
         // Not encrypted - return as-is (backward compatible)
         return Ok(ciphertext.to_vec());
     }
-    
+
     let actual_ciphertext = &ciphertext[marker.len()..];
-    
+
     let passphrase_str = passphrase
         .filter(|p| !p.is_empty())
         .context("Profile is encrypted but no passphrase provided")?;
-    
-    let decryptor = age::Decryptor::new(actual_ciphertext)
-        .context("Failed to parse encrypted data")?;
-    
+
+    let decryptor =
+        age::Decryptor::new(actual_ciphertext).context("Failed to parse encrypted data")?;
+
     let mut plaintext = vec![];
-    decryptor.decrypt(std::iter::once(&age::scrypt::Identity::new(secrecy::SecretString::from(passphrase_str.as_str())) as _))
+    decryptor
+        .decrypt(std::iter::once(
+            &age::scrypt::Identity::new(secrecy::SecretString::from(passphrase_str.as_str())) as _,
+        ))
         .context("Failed to decrypt - wrong passphrase?")?
         .read_to_end(&mut plaintext)
         .context("Failed to read decrypted data")?;
-    
+
     Ok(plaintext)
 }
 
@@ -93,11 +98,11 @@ mod tests {
     fn test_encrypt_decrypt() {
         let plaintext = b"sensitive auth data";
         let passphrase = String::from("my secret password");
-        
+
         let encrypted = encrypt(plaintext, Some(&passphrase)).unwrap();
         assert!(is_encrypted(&encrypted));
         assert_ne!(encrypted, plaintext.to_vec());
-        
+
         let decrypted = decrypt(&encrypted, Some(&passphrase)).unwrap();
         assert_eq!(decrypted, plaintext);
     }
@@ -107,7 +112,7 @@ mod tests {
         let plaintext = b"sensitive auth data";
         let passphrase = String::from("correct password");
         let wrong_passphrase = String::from("wrong password");
-        
+
         let encrypted = encrypt(plaintext, Some(&passphrase)).unwrap();
         assert!(decrypt(&encrypted, Some(&wrong_passphrase)).is_err());
     }

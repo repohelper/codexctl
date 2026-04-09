@@ -52,80 +52,91 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
 }
 
 /// Fetch real-time quota from OpenAI API
-async fn fetch_realtime_quota(auth_json: &serde_json::Value) -> anyhow::Result<crate::utils::api::RealTimeQuota> {
+async fn fetch_realtime_quota(
+    auth_json: &serde_json::Value,
+) -> anyhow::Result<crate::utils::api::RealTimeQuota> {
     use crate::utils::api::{extract_api_key, fetch_quota};
-    
-    let api_key = extract_api_key(auth_json)
-        .context("No API key found in auth.json")?;
-    
+
+    let api_key = extract_api_key(auth_json).context("No API key found in auth.json")?;
+
     fetch_quota(&api_key).await
 }
 
 /// Display real-time quota information
 fn display_realtime_quota(quota: &crate::utils::api::RealTimeQuota) {
-    
-    
     println!("\n{}", "📈 Real-Time Quota (from OpenAI API)".bold().cyan());
     println!();
-    
+
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    
+
     table.add_row(Row::new(vec![
         Cell::new("Account ID"),
         Cell::new(&quota.account_id),
     ]));
-    
+
     table.add_row(Row::new(vec![
         Cell::new("Plan"),
         Cell::new(&quota.plan.to_uppercase()),
     ]));
-    
+
     // Format as dollars
     let limit_dollars = format!("${:.2}", quota.quota_limit as f64 / 100.0);
     let usage_dollars = format!("${:.2}", quota.usage_this_month as f64 / 100.0);
     let remaining_dollars = format!("${:.2}", quota.remaining_quota as f64 / 100.0);
-    
+
     table.add_row(Row::new(vec![
         Cell::new("Monthly Limit"),
         Cell::new(&limit_dollars),
     ]));
-    
+
     table.add_row(Row::new(vec![
         Cell::new("Used This Month"),
         Cell::new(&usage_dollars),
     ]));
-    
-    let remaining_style = if quota.is_critical() { "Fr" } else if quota.is_low() { "Fy" } else { "Fg" };
+
+    let remaining_style = if quota.is_critical() {
+        "Fr"
+    } else if quota.is_low() {
+        "Fy"
+    } else {
+        "Fg"
+    };
     table.add_row(Row::new(vec![
         Cell::new("Remaining"),
         Cell::new(&remaining_dollars).style_spec(remaining_style),
     ]));
-    
-    let percent_style = if quota.is_critical() { "Fr" } else if quota.is_low() { "Fy" } else { "Fg" };
+
+    let percent_style = if quota.is_critical() {
+        "Fr"
+    } else if quota.is_low() {
+        "Fy"
+    } else {
+        "Fg"
+    };
     table.add_row(Row::new(vec![
         Cell::new("Percent Used"),
         Cell::new(&format!("{:.1}%", quota.percent_used)).style_spec(percent_style),
     ]));
-    
+
     if let Some(days) = quota.days_until_reset() {
         let days_text = if days > 0 {
             format!("{} days until reset", days)
         } else {
             "Resets today".to_string()
         };
-        table.add_row(Row::new(vec![
-            Cell::new("Reset"),
-            Cell::new(&days_text),
-        ]));
+        table.add_row(Row::new(vec![Cell::new("Reset"), Cell::new(&days_text)]));
     }
-    
+
     table.printstd();
-    
+
     // Warning messages
     if quota.is_critical() {
         println!("\n{}", "⚠️  WARNING: Quota critically low!".red().bold());
-        println!("   Only {:.1}% remaining. Consider switching profiles.", 100.0 - quota.percent_used);
+        println!(
+            "   Only {:.1}% remaining. Consider switching profiles.",
+            100.0 - quota.percent_used
+        );
     } else if quota.is_low() {
         println!("\n{}", "⚠️  Quota running low".yellow());
         println!("   {:.1}% used. Monitor usage closely.", quota.percent_used);
@@ -190,18 +201,24 @@ async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
 
     // Sort by plan type (enterprise > team > personal)
     profiles_with_usage.sort_by(|a, b| {
-        let score_a = a.1.as_ref().map(|u| match u.plan_type.as_str() {
-            "enterprise" => 3,
-            "team" => 2,
-            "personal" => 1,
-            _ => 0,
-        }).unwrap_or(0);
-        let score_b = b.1.as_ref().map(|u| match u.plan_type.as_str() {
-            "enterprise" => 3,
-            "team" => 2,
-            "personal" => 1,
-            _ => 0,
-        }).unwrap_or(0);
+        let score_a =
+            a.1.as_ref()
+                .map(|u| match u.plan_type.as_str() {
+                    "enterprise" => 3,
+                    "team" => 2,
+                    "personal" => 1,
+                    _ => 0,
+                })
+                .unwrap_or(0);
+        let score_b =
+            b.1.as_ref()
+                .map(|u| match u.plan_type.as_str() {
+                    "enterprise" => 3,
+                    "team" => 2,
+                    "personal" => 1,
+                    _ => 0,
+                })
+                .unwrap_or(0);
         score_b.cmp(&score_a)
     });
 
@@ -230,9 +247,12 @@ async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
                         _ => "👤 Personal".yellow(),
                     };
 
-                    let days_left = usage.subscription_end.as_ref()
+                    let days_left = usage
+                        .subscription_end
+                        .as_ref()
                         .and_then(|end| {
-                            DateTime::parse_from_rfc3339(end).ok()
+                            DateTime::parse_from_rfc3339(end)
+                                .ok()
                                 .map(|d| (d.with_timezone(&Utc) - Utc::now()).num_days())
                         })
                         .unwrap_or(0);
@@ -267,7 +287,10 @@ async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
 
         table.printstd();
         println!();
-        println!("{}", "💡 Tip: Use 'codexo load auto' to switch to the best available profile".dimmed());
+        println!(
+            "{}",
+            "💡 Tip: Use 'codexo load auto' to switch to the best available profile".dimmed()
+        );
     }
 
     Ok(())

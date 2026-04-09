@@ -103,14 +103,8 @@ pub async fn execute(
 
     match shell.as_str() {
         "fish" => {
-            println!(
-                "set -x CODEXO {};",
-                shell_escape_bash(&profile)
-            );
-            println!(
-                "set -x CODEXO_DIR {};",
-                shell_escape_bash(&profile_dir_str)
-            );
+            println!("set -x CODEXO {};", shell_escape_bash(&profile));
+            println!("set -x CODEXO_DIR {};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
                 "# Or run: eval (codexo env {} --unset) to clear",
@@ -118,10 +112,7 @@ pub async fn execute(
             );
         }
         "powershell" | "pwsh" => {
-            println!(
-                "$env:CODEXO = {};",
-                shell_escape_powershell(&profile)
-            );
+            println!("$env:CODEXO = {};", shell_escape_powershell(&profile));
             println!(
                 "$env:CODEXO_DIR = {};",
                 shell_escape_powershell(&profile_dir_str)
@@ -134,22 +125,13 @@ pub async fn execute(
         }
         "cmd" | "batch" => {
             println!("set \"CODEXO={}\"", shell_escape_cmd(&profile));
-            println!(
-                "set \"CODEXO_DIR={}\"",
-                shell_escape_cmd(&profile_dir_str)
-            );
+            println!("set \"CODEXO_DIR={}\"", shell_escape_cmd(&profile_dir_str));
             println!("REM Use with: codex");
         }
         _ => {
             // bash, zsh, etc.
-            println!(
-                "export CODEXO={};",
-                shell_escape_bash(&profile)
-            );
-            println!(
-                "export CODEXO_DIR={};",
-                shell_escape_bash(&profile_dir_str)
-            );
+            println!("export CODEXO={};", shell_escape_bash(&profile));
+            println!("export CODEXO_DIR={};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
                 "# Or run: eval $(codexo env {} --unset) to clear",
@@ -169,10 +151,7 @@ pub async fn execute(
         eprintln!("{} This won't affect other terminals!", "ℹ".blue());
         eprintln!();
         eprintln!("Example usage:");
-        eprintln!(
-            "  {}",
-            format!("eval $(codexo env {})", profile).yellow()
-        );
+        eprintln!("  {}", format!("eval $(codexo env {})", profile).yellow());
         eprintln!("  {}  # Uses '{}' profile", "codex".yellow(), profile);
         eprintln!();
         eprintln!("To switch back to default:");
@@ -296,10 +275,7 @@ mod tests {
     fn powershell_hostile_injection() {
         let hostile = "'; Remove-Item -Recurse C:\\; $x='";
         let escaped = shell_escape_powershell(hostile);
-        assert_eq!(
-            escaped,
-            "'''; Remove-Item -Recurse C:\\; $x='''"
-        );
+        assert_eq!(escaped, "'''; Remove-Item -Recurse C:\\; $x='''");
     }
 
     #[test]

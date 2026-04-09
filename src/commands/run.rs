@@ -28,8 +28,8 @@ pub async fn execute(
     // Atomically switch to the target profile.
     // The transaction saves the original codex dir internally so it can be
     // restored atomically after the command finishes.
-    let mut txn = ProfileTransaction::new(codex_dir)
-        .context("Failed to initialise profile transaction")?;
+    let mut txn =
+        ProfileTransaction::new(codex_dir).context("Failed to initialise profile transaction")?;
     txn.stage_profile(&profile_dir, crate::utils::files::get_critical_files())
         .context("Failed to stage profile")?;
     txn.commit()

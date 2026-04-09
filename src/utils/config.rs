@@ -126,7 +126,10 @@ impl Config {
     /// Use [`Config::profile_path_validated`] with a [`ProfileName`] instead
     /// to prevent path traversal attacks.
     #[must_use]
-    #[deprecated(since = "0.1.0", note = "use profile_path_validated with a ProfileName")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "use profile_path_validated with a ProfileName"
+    )]
     pub fn profile_path(&self, name: &str) -> PathBuf {
         self.profiles_dir.join(name)
     }
@@ -218,7 +221,10 @@ mod tests {
     #[test]
     fn test_codex_data_dir_returns_absolute_path() {
         let dir = codex_data_dir().unwrap();
-        assert!(dir.is_absolute(), "codex_data_dir should be absolute: {dir:?}");
+        assert!(
+            dir.is_absolute(),
+            "codex_data_dir should be absolute: {dir:?}"
+        );
     }
 
     #[test]

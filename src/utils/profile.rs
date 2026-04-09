@@ -117,8 +117,8 @@ impl Profile {
         let mut meta = self.meta.clone();
         meta.encrypted = should_encrypt;
         meta.update();
-        let meta_json = serde_json::to_string_pretty(&meta)
-            .context("Failed to serialize profile metadata")?;
+        let meta_json =
+            serde_json::to_string_pretty(&meta).context("Failed to serialize profile metadata")?;
         std::fs::write(&meta_path, meta_json)
             .with_context(|| format!("Failed to write metadata to {}", meta_path.display()))?;
 

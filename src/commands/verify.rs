@@ -9,9 +9,11 @@ use prettytable::{Cell, Row, Table, format};
 /// Verify all profiles' authentication status
 pub async fn execute(config: Config, quiet: bool) -> Result<()> {
     let profiles_dir = config.profiles_dir();
-    
+
     if !profiles_dir.exists() {
-        anyhow::bail!("No profiles directory found. Create profiles first with: codexo save <name>");
+        anyhow::bail!(
+            "No profiles directory found. Create profiles first with: codexo save <name>"
+        );
     }
 
     let mut entries = tokio::fs::read_dir(profiles_dir).await?;
@@ -56,7 +58,10 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
     }
 
     // Return error if any profile is invalid
-    let invalid_count = results.iter().filter(|(_, r)| matches!(r, ProfileStatus::Invalid(_))).count();
+    let invalid_count = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Invalid(_)))
+        .count();
     if invalid_count > 0 {
         anyhow::bail!("{} profile(s) have invalid authentication", invalid_count);
     }
@@ -74,7 +79,7 @@ enum ProfileStatus {
 
 async fn verify_profile(profile_dir: &std::path::Path) -> ProfileStatus {
     let auth_path = profile_dir.join("auth.json");
-    
+
     if !auth_path.exists() {
         return ProfileStatus::Invalid("No auth.json found".to_string());
     }
@@ -100,13 +105,14 @@ async fn verify_profile(profile_dir: &std::path::Path) -> ProfileStatus {
             // Check if token is expired
             if let Some(ref end) = usage.subscription_end {
                 match calculate_days_remaining(end) {
-                    Ok(days) if days < 0 => {
-                        ProfileStatus::Invalid(format!("Subscription expired {} days ago", days.abs()))
-                    }
+                    Ok(days) if days < 0 => ProfileStatus::Invalid(format!(
+                        "Subscription expired {} days ago",
+                        days.abs()
+                    )),
                     _ => ProfileStatus::Valid {
                         email: usage.email,
                         plan: usage.plan_type,
-                    }
+                    },
                 }
             } else {
                 ProfileStatus::Valid {
@@ -166,10 +172,21 @@ fn display_results(results: &[(String, ProfileStatus)]) {
     table.printstd();
     println!();
 
-    let valid = results.iter().filter(|(_, r)| matches!(r, ProfileStatus::Valid { .. })).count();
-    let invalid = results.iter().filter(|(_, r)| matches!(r, ProfileStatus::Invalid(_))).count();
-    
-    println!("{}: {} valid, {} invalid", "Summary".bold(), valid.to_string().green(), invalid.to_string().red());
+    let valid = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Valid { .. }))
+        .count();
+    let invalid = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Invalid(_)))
+        .count();
+
+    println!(
+        "{}: {} valid, {} invalid",
+        "Summary".bold(),
+        valid.to_string().green(),
+        invalid.to_string().red()
+    );
     println!();
 }
 
@@ -194,7 +211,7 @@ mod tests {
     async fn test_verify_profile_missing_auth() {
         let temp_dir = TempDir::new().unwrap();
         let status = verify_profile(temp_dir.path()).await;
-        
+
         match status {
             ProfileStatus::Invalid(msg) => assert!(msg.contains("No auth.json")),
             _ => panic!("Expected Invalid status"),

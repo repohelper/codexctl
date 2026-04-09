@@ -87,7 +87,8 @@ pub async fn execute(
     let is_encrypted = secret_passphrase.is_some();
 
     // Save profile with optional encryption
-    profile.save_to_disk_encrypted(&profile_dir, secret_passphrase.as_ref())
+    profile
+        .save_to_disk_encrypted(&profile_dir, secret_passphrase.as_ref())
         .with_context(|| "Failed to save profile")?;
 
     if let Some(bar) = pb {
@@ -117,4 +118,3 @@ pub async fn execute(
 
     Ok(())
 }
-
