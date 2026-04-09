@@ -69,7 +69,7 @@ aes-gcm = { version = "0.11.0-rc.3", optional = true }
 rand = { version = "0.8.5", optional = true }
 
 # Utilities
-which = "7.0.1"
+which = "8.0.2"
 
 # Logging
 tracing = "0.1.41"
