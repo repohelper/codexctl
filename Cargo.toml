@@ -30,7 +30,7 @@ clap_complete = "4.6"
 tokio = { version = "1.51", features = ["full", "tracing"] }
 
 # Serialization
-toml = "0.8"
+toml = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
