@@ -38,7 +38,7 @@ fn shell_escape_powershell(value: &str) -> String {
 ///   (an adjacent empty pair), which is the closest cmd.exe approximation.
 ///
 /// The caller is responsible for wrapping the result in the `set "VAR=…"`
-/// form, e.g. `set "POLYCLI=<escaped>"`.
+/// form, e.g. `set "CODEXCTL=<escaped>"`.
 fn shell_escape_cmd(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 4);
     for ch in value.chars() {
@@ -72,21 +72,21 @@ pub async fn execute(
     if unset {
         match shell.as_str() {
             "fish" => {
-                println!("set -e POLYCLI;");
-                println!("set -e POLYCLI_DIR;");
+                println!("set -e CODEXCTL;");
+                println!("set -e CODEXCTL_DIR;");
             }
             "powershell" | "pwsh" => {
-                println!("Remove-Item Env:POLYCLI -ErrorAction SilentlyContinue;");
-                println!("Remove-Item Env:POLYCLI_DIR -ErrorAction SilentlyContinue;");
+                println!("Remove-Item Env:CODEXCTL -ErrorAction SilentlyContinue;");
+                println!("Remove-Item Env:CODEXCTL_DIR -ErrorAction SilentlyContinue;");
             }
             "cmd" | "batch" => {
-                println!("set POLYCLI=");
-                println!("set POLYCLI_DIR=");
+                println!("set CODEXCTL=");
+                println!("set CODEXCTL_DIR=");
             }
             _ => {
                 // bash, zsh, etc.
-                println!("unset POLYCLI;");
-                println!("unset POLYCLI_DIR;");
+                println!("unset CODEXCTL;");
+                println!("unset CODEXCTL_DIR;");
             }
         }
 
@@ -103,8 +103,8 @@ pub async fn execute(
 
     match shell.as_str() {
         "fish" => {
-            println!("set -x POLYCLI {};", shell_escape_bash(&profile));
-            println!("set -x POLYCLI_DIR {};", shell_escape_bash(&profile_dir_str));
+            println!("set -x CODEXCTL {};", shell_escape_bash(&profile));
+            println!("set -x CODEXCTL_DIR {};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
                 "# Or run: eval (poly env {} --unset) to clear",
@@ -112,9 +112,9 @@ pub async fn execute(
             );
         }
         "powershell" | "pwsh" => {
-            println!("$env:POLYCLI = {};", shell_escape_powershell(&profile));
+            println!("$env:CODEXCTL = {};", shell_escape_powershell(&profile));
             println!(
-                "$env:POLYCLI_DIR = {};",
+                "$env:CODEXCTL_DIR = {};",
                 shell_escape_powershell(&profile_dir_str)
             );
             println!("# Use with: codex");
@@ -124,14 +124,14 @@ pub async fn execute(
             );
         }
         "cmd" | "batch" => {
-            println!("set \"POLYCLI={}\"", shell_escape_cmd(&profile));
-            println!("set \"POLYCLI_DIR={}\"", shell_escape_cmd(&profile_dir_str));
+            println!("set \"CODEXCTL={}\"", shell_escape_cmd(&profile));
+            println!("set \"CODEXCTL_DIR={}\"", shell_escape_cmd(&profile_dir_str));
             println!("REM Use with: codex");
         }
         _ => {
             // bash, zsh, etc.
-            println!("export POLYCLI={};", shell_escape_bash(&profile));
-            println!("export POLYCLI_DIR={};", shell_escape_bash(&profile_dir_str));
+            println!("export CODEXCTL={};", shell_escape_bash(&profile));
+            println!("export CODEXCTL_DIR={};", shell_escape_bash(&profile_dir_str));
             println!("# Use with: codex");
             println!(
                 "# Or run: eval $(poly env {} --unset) to clear",

@@ -1,4 +1,4 @@
-//! PolyCLI - Universal AI CLI Profile Manager
+//! CodexCTL - Universal AI CLI Profile Manager
 
 use std::path::PathBuf;
 
@@ -12,13 +12,13 @@ mod utils;
 use commands::{backup, delete, list, load, run, save, status};
 use utils::config::Config;
 
-/// PolyCLI - Universal AI CLI Profile Manager
+/// CodexCTL - Codex CLI Profile Manager
 #[derive(Parser, Debug, Clone)]
 #[command(
-    name = "polycli",
-    bin_name = "polycli",
+    name = "codexctl",
+    bin_name = "codexctl",
     version,
-    about = "Universal AI CLI Profile Manager - Manage multiple AI CLI accounts",
+    about = "Codex CLI Profile Manager - Manage multiple OpenAI Codex CLI accounts",
     long_about = None
 )]
 #[command(arg_required_else_help = true)]
@@ -31,11 +31,11 @@ pub struct Cli {
     verbose: bool,
 
     /// Config directory override
-    #[arg(long, global = true, env = "POLYCLI_DIR", value_hint = ValueHint::DirPath)]
+    #[arg(long, global = true, env = "CODEXCTL_DIR", value_hint = ValueHint::DirPath)]
     config_dir: Option<PathBuf>,
 
     /// Quiet mode (minimal output)
-    #[arg(short, long, global = true, env = "POLYCLI_QUIET")]
+    #[arg(short, long, global = true, env = "CODEXCTL_QUIET")]
     quiet: bool,
 }
 
@@ -54,7 +54,7 @@ pub enum CodexCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// Load a saved profile and switch to it
@@ -66,7 +66,7 @@ pub enum CodexCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Passphrase to decrypt profile
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// List all saved Codex profiles
@@ -104,7 +104,7 @@ pub enum ClaudeCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// Load a saved profile and switch to it
@@ -116,7 +116,7 @@ pub enum ClaudeCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Passphrase to decrypt profile
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// List all saved Claude profiles
@@ -154,7 +154,7 @@ pub enum GeminiCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// Load a saved profile and switch to it
@@ -166,7 +166,7 @@ pub enum GeminiCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Passphrase to decrypt profile
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// List all saved Gemini profiles
@@ -204,7 +204,7 @@ pub enum OpenaiCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// Load a saved profile and switch to it
@@ -216,7 +216,7 @@ pub enum OpenaiCliCommands {
         #[arg(short, long)]
         force: bool,
         /// Passphrase to decrypt profile
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
     /// List all saved OpenAI profiles
@@ -271,7 +271,7 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
         /// Encrypt profile with passphrase (optional, leave empty for no encryption)
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
 
@@ -287,7 +287,7 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
         /// Passphrase to decrypt profile (if encrypted)
-        #[arg(short = 'p', long, env = "POLYCLI_PASSPHRASE")]
+        #[arg(short = 'p', long, env = "CODEXCTL_PASSPHRASE")]
         passphrase: Option<String>,
     },
 
@@ -450,7 +450,7 @@ async fn main() -> Result<()> {
         .with_level(true)
         .init();
 
-    debug!("Starting polycli");
+    debug!("Starting codexctl");
     info!("Config directory: {:?}", cli.config_dir);
 
     let config = Config::new(cli.config_dir.clone())?;

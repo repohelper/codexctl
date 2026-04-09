@@ -1,10 +1,10 @@
-# PolyCLI - Docker Image
+# CodexCTL - Docker Image
 # Multi-stage build for minimal size
 
 # Stage 1: Build
 FROM rust:1.94-slim-bookworm AS builder
 
-WORKDIR /usr/src/polycli
+WORKDIR /usr/src/codexctl
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -25,7 +25,7 @@ RUN cargo build --release
 FROM debian:bookworm-slim
 
 LABEL maintainer="Bhanu Korthiwada"
-LABEL description="PolyCLI - Universal AI CLI Profile Manager"
+LABEL description="CodexCTL - Codex CLI Profile Manager"
 LABEL version="0.1.0"
 
 # Install runtime dependencies
@@ -36,29 +36,29 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Create non-root user
-RUN useradd -m -s /bin/bash polycli
+RUN useradd -m -s /bin/bash codexctl
 
 # Copy binary from builder
-COPY --from=builder /usr/src/polycli/target/release/polycli /usr/local/bin/polycli
-COPY --from=builder /usr/src/polycli/target/release/poly /usr/local/bin/poly
+COPY --from=builder /usr/src/codexctl/target/release/codexctl /usr/local/bin/codexctl
+COPY --from=builder /usr/src/codexctl/target/release/cdx /usr/local/bin/cdx
 
 # Set permissions
-RUN chmod +x /usr/local/bin/polycli /usr/local/bin/poly
+RUN chmod +x /usr/local/bin/codexctl /usr/local/bin/cdx
 
 # Create profiles directory
-RUN mkdir -p /home/polycli/.local/share/polycli && \
-    chown -R polycli:polycli /home/polycli
+RUN mkdir -p /home/codexctl/.local/share/codexctl && \
+    chown -R codexctl:codexctl /home/codexctl
 
 # Switch to non-root user
-USER polycli
+USER codexctl
 
 # Set environment
-ENV POLYCLI_DIR=/home/polycli/.local/share/polycli
+ENV CODEXCTL_DIR=/home/codexctl/.local/share/codexctl
 ENV RUST_LOG=info
 
 # Volume for persistent profiles
-VOLUME ["/home/polycli/.local/share/polycli"]
+VOLUME ["/home/codexctl/.local/share/codexctl"]
 
 # Default command
-ENTRYPOINT ["polycli"]
+ENTRYPOINT ["codexctl"]
 CMD ["--help"]

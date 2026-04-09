@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PolyCLI Installation Script
+ * CodexCTL Installation Script
  * Downloads the appropriate binary for the current platform
  */
 
@@ -11,7 +11,7 @@ const os = require('os');
 const { execSync } = require('child_process');
 
 const VERSION = require('./package.json').version;
-const BINARY_NAME = 'polycli';
+const BINARY_NAME = 'codexctl';
 
 // Platform mappings
 const platforms = {
@@ -38,7 +38,7 @@ function getPlatform() {
 
 function getDownloadUrl(target) {
   const ext = target.includes('windows') ? 'zip' : 'tar.gz';
-  return `https://github.com/repohelper/polycli/releases/download/v${VERSION}/polycli-${target}.${ext}`;
+  return `https://github.com/repohelper/codexctl/releases/download/v${VERSION}/codexctl-${target}.${ext}`;
 }
 
 function downloadFile(url, dest) {
@@ -78,7 +78,7 @@ async function install() {
   
   // Skip if binaries already exist (development or manual install)
   if (fs.existsSync(path.join(binDir, BINARY_NAME))) {
-    console.log('PolyCLI binaries already exist, skipping download');
+    console.log('CodexCTL binaries already exist, skipping download');
     return;
   }
   
@@ -90,9 +90,9 @@ async function install() {
   const target = getPlatform();
   const url = getDownloadUrl(target);
   const ext = target.includes('windows') ? 'zip' : 'tar.gz';
-  const archivePath = path.join(binDir, `polycli-${target}.${ext}`);
+  const archivePath = path.join(binDir, `codexctl-${target}.${ext}`);
   
-  console.log(`Downloading PolyCLI v${VERSION} for ${target}...`);
+  console.log(`Downloading CodexCTL v${VERSION} for ${target}...`);
   console.log(`URL: ${url}`);
   
   try {
@@ -105,14 +105,14 @@ async function install() {
     // Make binaries executable on Unix
     if (os.platform() !== 'win32') {
       execSync(`chmod +x "${path.join(binDir, BINARY_NAME)}"`);
-      execSync(`chmod +x "${path.join(binDir, 'poly')}"`);
+      execSync(`chmod +x "${path.join(binDir, 'cdx')}"`);
     }
     
-    console.log('PolyCLI installed successfully!');
-    console.log('Run: poly --help');
+    console.log('CodexCTL installed successfully!');
+    console.log('Run: cdx --help');
   } catch (error) {
     console.error('Installation failed:', error.message);
-    console.error('You can manually download from: https://github.com/repohelper/polycli/releases');
+    console.error('You can manually download from: https://github.com/repohelper/codexctl/releases');
     process.exit(1);
   }
 }

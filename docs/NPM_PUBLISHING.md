@@ -2,7 +2,7 @@
 
 ## Overview
 
-PolyCLI uses **npm Trusted Publishers** (via GitHub Actions OIDC) for secure, automated publishing. No long-lived npm tokens stored in GitHub secrets.
+CodexCTL uses **npm Trusted Publishers** (via GitHub Actions OIDC) for secure, automated publishing. No long-lived npm tokens stored in GitHub secrets.
 
 ## Setup Steps
 
@@ -28,11 +28,11 @@ npm publish --access public
 
 ### 3. Configure Trusted Publisher (One-time setup)
 
-1. Go to https://www.npmjs.com/package/polycli/access
+1. Go to https://www.npmjs.com/package/codexctl/access
 2. Click **"Add Integration"** (Trusted Publishers section)
 3. Select **"GitHub Actions"**
 4. Configure:
-   - **Repository**: `repohelper/polycli`
+   - **Repository**: `repohelper/codexctl`
    - **Workflow**: `npm-publish.yml`
    - **Environment**: (leave empty for any)
 5. Click **"Add Integration"**
@@ -44,7 +44,7 @@ Even with trusted publishing, you need a temporary token for the initial setup:
 1. Go to https://www.npmjs.com/settings/BhanuKorthiwada/tokens
 2. Create **Granular Access Token**:
    - Name: `GitHub Actions Publish`
-   - Packages: `polycli` (Read and Write)
+   - Packages: `codexctl` (Read and Write)
    - Expiration: 90 days
 3. Copy the token
 
@@ -69,7 +69,7 @@ This will:
 
 ### 6. Verify Trusted Publishing Works
 
-Check the npm package page: https://www.npmjs.com/package/polycli
+Check the npm package page: https://www.npmjs.com/package/codexctl
 
 You should see:
 - ✅ "Provenance" badge (linked GitHub Actions run)
@@ -102,7 +102,7 @@ cd npm && npm login && npm publish --access public
 ### "Unauthorized" error
 Check that:
 1. `NPM_TOKEN` secret is set correctly
-2. Token has write access to `polycli` package
+2. Token has write access to `codexctl` package
 3. Trusted publisher is configured for correct workflow file
 
 ### Provenance not showing
@@ -122,7 +122,7 @@ Trusted publishing doesn't require token rotation, but if you used legacy tokens
 3. Revoke old token on npm
 
 ### Adding Collaborators
-1. Go to https://www.npmjs.com/package/polycli/access
+1. Go to https://www.npmjs.com/package/codexctl/access
 2. Click **"Add Member"**
 3. Enter npm username and select role (Read/Write/Admin)
 

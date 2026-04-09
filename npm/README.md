@@ -1,57 +1,50 @@
-# PolyCLI
+# CodexCTL
 
-Universal AI CLI Profile Manager - Manage multiple AI CLI accounts (Codex, Claude, Gemini, OpenAI)
+Codex CLI Profile Manager - Manage multiple OpenAI Codex CLI accounts
 
 ## Installation
 
 ```bash
-npm install -g polycli
+npm install -g codexctl
 ```
 
 Or use npx (no install):
 ```bash
-npx polycli --help
+npx codexctl --help
 ```
 
 ## Usage
 
 ```bash
-# Save your current AI CLI profile
-poly codex save work
-poly claude save personal
+# Save your current Codex CLI profile
+cdx save work
+cdx save personal
 
 # Switch between profiles
-poly codex load work
-poly claude load personal
+cdx load work
+cdx load personal
 
 # List all profiles
-poly list
+cdx list
 
 # Quick-switch to previous profile
-poly load -
+cdx load -
 
 # Auto-switch to best profile based on quota
-poly load auto
+cdx load auto
 ```
-
-## Supported AI CLIs
-
-- **Codex CLI** (`poly codex`)
-- **Claude Code** (`poly claude`)
-- **Gemini CLI** (`poly gemini`)
-- **OpenAI CLI** (`poly openai`)
 
 ## Features
 
 - 🔐 **Optional Encryption** - age-based encryption for sensitive auth data
 - 🚀 **Fast Switching** - Switch accounts in < 1 second
 - 🤖 **Auto-Switcher** - Automatically pick the best profile based on quota
-- 📊 **Real-Time Quota** - Live usage data from AI provider APIs
+- 📊 **Real-Time Quota** - Live usage data from OpenAI API
 - 🌳 **Concurrent Usage** - Use multiple profiles simultaneously
 
 ## Documentation
 
-Full documentation: https://polycli.repohelper.com
+Full documentation: https://codexctl.repohelper.com
 
 ## License
 

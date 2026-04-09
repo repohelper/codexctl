@@ -1,24 +1,24 @@
 [package]
-name = "polycli"
+name = "codexctl"
 version = "0.1.0"
 edition = "2024"
 authors = ["Bhanu Korthiwada"]
-description = "Universal AI CLI Profile Manager - Manage multiple AI CLI accounts (Codex, Claude, Gemini)"
+description = "Codex CLI Profile Manager - Manage multiple OpenAI Codex CLI accounts"
 license = "MIT"
-repository = "https://github.com/repohelper/polycli"
-homepage = "https://polycli.repohelper.com"
-documentation = "https://polycli.repohelper.com/docs"
+repository = "https://github.com/repohelper/codexctl"
+homepage = "https://codexctl.repohelper.com"
+documentation = "https://codexctl.repohelper.com/docs"
 readme = "README.md"
-keywords = ["ai", "cli", "profile", "manager", "multi-account", "codex", "claude", "gemini"]
+keywords = ["codex", "openai", "cli", "profile", "manager", "oauth"]
 categories = ["command-line-utilities", "development-tools"]
 rust-version = "1.94.1"
 
 [[bin]]
-name = "polycli"
+name = "codexctl"
 path = "src/main.rs"
 
 [[bin]]
-name = "poly"
+name = "cdx"
 path = "src/main.rs"
 
 [dependencies]

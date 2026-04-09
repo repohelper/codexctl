@@ -1,26 +1,27 @@
-# PolyCLI
+# CodexCTL
 
-[![CI](https://github.com/repohelper/polycli/actions/workflows/ci.yml/badge.svg)](https://github.com/repohelper/polycli/actions)
+[![CI](https://github.com/repohelper/codexctl/actions/workflows/ci.yml/badge.svg)](https://github.com/repohelper/codexctl/actions)
+[![npm](https://img.shields.io/npm/v/codexctl.svg)](https://www.npmjs.com/package/codexctl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust Version](https://img.shields.io/badge/rust-1.94%2B-blue.svg)](https://www.rust-lang.org)
 
-> **Universal AI CLI Profile Manager** - Manage multiple AI CLI accounts (Codex, Claude Code, Gemini CLI, and more)
+> **Codex CLI Profile Manager** - Manage multiple OpenAI Codex CLI accounts
 
 **Version**: 0.1.0 | **Author**: [Bhanu Korthiwada](https://github.com/BhanuKorthiwada) | **Status**: ✅ Public Beta
 
-🔗 **Website**: [polycli.repohelper.com](https://polycli.repohelper.com)  
-📖 **Documentation**: [polycli.repohelper.com/docs](https://polycli.repohelper.com/docs)
+🔗 **Website**: [codexctl.repohelper.com](https://codexctl.repohelper.com)  
+📖 **Documentation**: [codexctl.repohelper.com/docs](https://codexctl.repohelper.com/docs)
 
 ---
 
-## Why PolyCLI?
+## Why CodexCTL?
 
-If you work with multiple AI CLI tools (OpenAI Codex, Claude Code, Gemini CLI) and have multiple accounts (work, personal, side projects), PolyCLI lets you:
+If you work with multiple OpenAI Codex CLI accounts (work, personal, side projects), CodexCTL lets you:
 
-- 🔐 **Securely store** multiple AI CLI profiles with optional encryption
+- 🔐 **Securely store** multiple Codex CLI profiles with optional encryption
 - ⚡ **Switch instantly** between accounts without re-authenticating
 - 🤖 **Auto-switch** based on quota availability
-- 📊 **Monitor usage** across all your AI CLI accounts
+- 📊 **Monitor usage** across all your Codex accounts
 - 🌳 **Use concurrently** - different accounts in different terminals
 
 ---
@@ -28,15 +29,14 @@ If you work with multiple AI CLI tools (OpenAI Codex, Claude Code, Gemini CLI) a
 ## Features
 
 ### Core
-- ✅ **Multi-CLI Support** - Works with Codex CLI, Claude Code, Gemini CLI (extensible)
 - 🔐 **Optional Encryption** - age-based encryption for sensitive auth data
 - 🚀 **Fast Switching** - Switch accounts in < 1 second
-- 🔄 **Quick-Switch** - Toggle between current and previous profile with `poly -`
+- 🔄 **Quick-Switch** - Toggle between current and previous profile with `cdx -`
 - 🗂️ **Profile Management** - Save, load, list, delete, backup profiles
 
 ### Advanced
 - 🤖 **Auto-Switcher** - Automatically pick the best profile based on quota availability
-- 📊 **Real-Time Quota** - Live usage data from AI provider APIs
+- 📊 **Real-Time Quota** - Live usage data from OpenAI API
 - ✅ **Verify Command** - Validate all profiles' authentication status
 - 🌳 **Concurrent Usage** - Use multiple profiles simultaneously via `env` command
 - 📦 **Import/Export** - Transfer profiles between machines securely
@@ -56,69 +56,61 @@ If you work with multiple AI CLI tools (OpenAI Codex, Claude Code, Gemini CLI) a
 
 ```bash
 # Via cargo
-cargo install polycli
+cargo install codexctl
+
+# Or via npm
+npm install -g codexctl
 
 # Or download binary
-curl -fsSL https://polycli.repohelper.com/install.sh | sh
+curl -fsSL https://codexctl.repohelper.com/install.sh | sh
 
 # Or via Homebrew (macOS/Linux)
-brew install repohelper/tap/polycli
+brew install repohelper/tap/codexctl
 ```
 
 ### First Steps
 
 ```bash
-# Save your current AI CLI profile
-poly save work
+# Save your current Codex CLI profile
+cdx save work
 
 # Create another profile
-# (switch accounts in your AI CLI, then:)
-poly save personal
+# (switch accounts in Codex CLI, then:)
+cdx save personal
 
 # List all profiles
-poly list
+cdx list
 
 # Switch to a profile
-poly load work
+cdx load work
 
 # Quick-switch to previous profile
-poly load -
+cdx load -
 ```
-
----
-
-## Supported AI CLIs
-
-| CLI | Status | Command |
-|-----|--------|---------|
-| OpenAI Codex CLI | ✅ Full Support | `poly --cli codex save work` |
-| Claude Code | ✅ Full Support | `poly --cli claude save work` |
-| Gemini CLI | ✅ Full Support | `poly --cli gemini save work` |
-| OpenAI CLI | ✅ Full Support | `poly --cli openai save work` |
 
 ---
 
 ## Commands
 
 ```
-poly save <name>              Save current AI CLI auth as a profile
-poly load <name>              Load a saved profile and switch to it
-poly list                     List all saved profiles
-poly delete <name>            Delete a saved profile
-poly status                   Show current profile status
-poly usage                    Show usage limits and subscription info
-poly verify                   Verify all profiles' authentication status
-poly backup                   Create a backup of current profile
-poly run <name> -- <cmd>      Run a command with a specific profile
-poly env <name>               Export shell commands for concurrent usage
-poly diff <name1> <name2>     Compare/diff two profiles
-poly switch                   Switch to a profile interactively (fzf)
-poly history                  View command history
-poly doctor                   Run health check on profiles
-poly completions              Generate shell completions
-poly import <file>            Import a profile from another machine
-poly export <name>            Export a profile for transfer
-poly setup                    Interactive setup wizard
+cdx save <name>              Save current Codex auth as a profile
+cdx load <name>              Load a saved profile and switch to it
+cdx list                     List all saved profiles
+cdx delete <name>            Delete a saved profile
+cdx status                   Show current profile status
+cdx usage                    Show usage limits and subscription info
+cdx verify                   Verify all profiles' authentication status
+cdx backup                   Create a backup of current profile
+cdx run <name> -- <cmd>      Run a command with a specific profile
+cdx env <name>               Export shell commands for concurrent usage
+cdx diff <name1> <name2>     Compare/diff two profiles
+cdx switch                   Switch to a profile interactively (fzf)
+cdx history                  View command history
+cdx doctor                   Run health check on profiles
+cdx completions              Generate shell completions
+cdx import <file>            Import a profile from another machine
+cdx export <name>            Export a profile for transfer
+cdx setup                    Interactive setup wizard
 ```
 
 ---
@@ -127,29 +119,29 @@ poly setup                    Interactive setup wizard
 
 ```bash
 # Save with encryption
-poly save work --passphrase "my-secret"
+cdx save work --passphrase "my-secret"
 
 # Or use environment variable
-export POLY_PASSPHRASE="my-secret"
-poly save work
+export CODEXCTL_PASSPHRASE="my-secret"
+cdx save work
 
 # Load encrypted profile
-poly load work --passphrase "my-secret"
+cdx load work --passphrase "my-secret"
 ```
 
 ---
 
 ## Auto-Switcher
 
-Let PolyCLI pick the best profile automatically:
+Let CodexCTL pick the best profile automatically:
 
 ```bash
 # Switch to profile with most quota available
-poly load auto
+cdx load auto
 
 # Configure auto-switch preferences
-poly config set auto_switch.threshold 80
-poly config set auto_switch.prefer work,personal
+cdx config set auto_switch.threshold 80
+cdx config set auto_switch.prefer work,personal
 ```
 
 ---
@@ -160,10 +152,10 @@ Add to your `.bashrc`/`.zshrc`:
 
 ```bash
 # Enable completions
-source <(poly completions bash)
+source <(cdx completions bash)
 
 # Optional: Auto-switch based on directory (like direnv)
-eval "$(poly init --shell zsh)"
+eval "$(cdx init --shell zsh)"
 ```
 
 ---
@@ -173,21 +165,21 @@ eval "$(poly init --shell zsh)"
 ```bash
 # Run with Docker
 docker run -it --rm \
-  -v ~/.polycli:/root/.config/polycli \
+  -v ~/.codexctl:/root/.config/codexctl \
   -v ~/.codex:/root/.codex \
-  ghcr.io/repohelper/polycli list
+  ghcr.io/repohelper/codexctl list
 ```
 
 ---
 
 ## Configuration
 
-Configuration directory: `~/.config/polycli/`
+Configuration directory: `~/.config/codexctl/`
 
 ```toml
-# ~/.config/polycli/config.toml
+# ~/.config/codexctl/config.toml
 [default]
-cli = "codex"  # Default AI CLI to manage
+cli = "codex"  # Default CLI to manage
 
 [auto_switch]
 enabled = true
@@ -201,15 +193,14 @@ default_passphrase = false  # Always prompt for passphrase
 
 ## Comparison
 
-| Feature | PolyCLI | [codex-profiles](https://github.com/midhunmonachan/codex-profiles) | [aisw](https://github.com/burakdede/aisw) |
-|---------|---------|-------------------------------------------------------------------|-------------------------------------------|
-| Multi-CLI | ✅ | ❌ | ✅ |
-| Encryption | ✅ | ❌ | ❌ |
-| Auto-Switcher | ✅ | ❌ | ❌ |
-| Real-Time Quota | ✅ | ❌ | ❌ |
-| Shell Completions | ✅ | ❌ | ❌ |
-| Docker Support | ✅ | ❌ | ❌ |
-| Cross-Platform | ✅ | ✅ | ✅ |
+| Feature | CodexCTL | [codex-profiles](https://github.com/midhunmonachan/codex-profiles) |
+|---------|---------|-------------------------------------------------------------------|
+| Encryption | ✅ | ❌ |
+| Auto-Switcher | ✅ | ❌ |
+| Real-Time Quota | ✅ | ❌ |
+| Shell Completions | ✅ | ❌ |
+| Docker Support | ✅ | ❌ |
+| Cross-Platform | ✅ | ✅ |
 
 ---
 

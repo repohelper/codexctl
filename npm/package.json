@@ -1,11 +1,11 @@
 {
-  "name": "polycli",
-  "version": "0.1.0",
-  "description": "Universal AI CLI Profile Manager - Manage multiple AI CLI accounts (Codex, Claude, Gemini)",
+  "name": "codexctl",
+  "version": "0.1.1",
+  "description": "Codex CLI Profile Manager - Manage multiple OpenAI Codex CLI accounts",
   "main": "index.js",
   "bin": {
-    "polycli": "./bin/polycli",
-    "poly": "./bin/poly"
+    "codexctl": "./bin/codexctl",
+    "cdx": "./bin/cdx"
   },
   "scripts": {
     "postinstall": "node install.js",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/repohelper/polycli.git"
+    "url": "git+https://github.com/repohelper/codexctl.git"
   },
   "keywords": [
     "ai",
@@ -29,9 +29,9 @@
   "author": "Bhanu Korthiwada",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/repohelper/polycli/issues"
+    "url": "https://github.com/repohelper/codexctl/issues"
   },
-  "homepage": "https://polycli.repohelper.com",
+  "homepage": "https://codexctl.repohelper.com",
   "engines": {
     "node": ">=16"
   },

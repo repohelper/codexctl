@@ -39,5 +39,5 @@ jobs:
       
       - name: Verify publication
         run: |
-          echo "Published polycli@${{ steps.get_version.outputs.VERSION }} to npm"
-          npm view polycli@${{ steps.get_version.outputs.VERSION }} || true
+          echo "Published codexctl@${{ steps.get_version.outputs.VERSION }} to npm"
+          npm view codexctl@${{ steps.get_version.outputs.VERSION }} || true

@@ -2,7 +2,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const binaryPath = path.join(__dirname, '..', 'bin', 'polycli');
+const binaryPath = path.join(__dirname, '..', 'bin', 'codexctl');
 const child = spawn(binaryPath, process.argv.slice(2), {
   stdio: 'inherit',
   windowsHide: true
