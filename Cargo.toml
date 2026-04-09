@@ -95,7 +95,7 @@ assert_cmd = "2.2"
 predicates = "3.1"
 tempfile = "3.27"
 serial_test = "3.4"
-criterion = { version = "0.5", features = ["async_tokio"] }
+criterion = { version = "0.8", features = ["async_tokio"] }
 mockall = "0.14"
 
 [profile.release]
