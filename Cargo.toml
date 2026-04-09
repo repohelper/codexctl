@@ -79,7 +79,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt", "ans
 prettytable-rs = "0.10.0"
 
 # HTTP client for OpenAI API
-reqwest = { version = "0.12.12", features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.13.2", features = ["json", "rustls-tls", "stream"] }
 
 # Encryption
 age = { version = "0.11.2", features = ["ssh"] }
