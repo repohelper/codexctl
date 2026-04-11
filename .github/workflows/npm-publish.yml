@@ -28,28 +28,25 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download latest CI artifacts
+      - name: Get latest CI run ID
+        id: ci-run
         run: |
           CI_RUN=$(gh api repos/repohelper/codexctl/actions/runs --jq '.workflow_runs[] | select(.head_branch == "main" and .conclusion == "success" and .name == "CI") | .id' | head -1)
-          echo "Downloading artifacts from CI run: $CI_RUN"
-          gh run download "$CI_RUN" --repo repohelper/codexctl --dir artifacts
+          echo "ci_run=$CI_RUN" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download artifacts from CI
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: codexctl-*
+          merge-multiple: true
+          workflow: ci.yml
+          run-id: ${{ steps.ci-run.outputs.ci_run }}
+
       - name: List artifacts
         run: ls -la artifacts/
-
-      - name: Rename artifacts for release
-        run: |
-          cd artifacts
-          # Rename to match release asset convention
-          for f in *.tar.gz *.zip; do
-            if [ -f "$f" ]; then
-              newname="${f/codexctl-/codexctl-}"
-              mv "$f" "$newname" 2>/dev/null || true
-            fi
-          done
-          ls -la
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -109,6 +106,8 @@ jobs:
           esac
           
           ls -la npm-platforms/${{ matrix.platform }}/bin/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Update version
         run: |
