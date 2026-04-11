@@ -1,0 +1,35 @@
+{
+  "name": "codexctl",
+  "version": "0.7.0",
+  "description": "Codex Controller - Full control plane for Codex CLI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/repohelper/codexctl.git"
+  },
+  "keywords": ["codex", "controller", "cli", "profiles", "usage"],
+  "author": "Bhanu Korthiwada",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/repohelper/codexctl/issues"
+  },
+  "homepage": "https://github.com/repohelper/codexctl",
+  "engines": {
+    "node": ">=16"
+  },
+  "bin": {
+    "codexctl": "./codexctl.js"
+  },
+  "optionalDependencies": {
+    "@codexctl/linux-x64": "^0.7.0",
+    "@codexctl/linux-arm64": "^0.7.0",
+    "@codexctl/darwin-x64": "^0.7.0",
+    "@codexctl/darwin-arm64": "^0.7.0",
+    "@codexctl/win32-x64": "^0.7.0"
+  },
+  "files": [
+    "codexctl.js",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
