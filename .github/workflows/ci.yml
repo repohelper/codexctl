@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default token scope for all jobs in this workflow.
 permissions:
   contents: read
 
