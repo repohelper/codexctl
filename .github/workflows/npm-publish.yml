@@ -39,6 +39,18 @@ jobs:
       - name: List artifacts
         run: ls -la artifacts/
 
+      - name: Rename artifacts for release
+        run: |
+          cd artifacts
+          # Rename to match release asset convention
+          for f in *.tar.gz *.zip; do
+            if [ -f "$f" ]; then
+              newname="${f/codexctl-/codexctl-}"
+              mv "$f" "$newname" 2>/dev/null || true
+            fi
+          done
+          ls -la
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
