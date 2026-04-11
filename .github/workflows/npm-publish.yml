@@ -87,6 +87,8 @@ jobs:
         run: |
           cd npm-platforms/${{ matrix.platform }}
           npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-main:
     name: Publish main package
@@ -119,6 +121,8 @@ jobs:
       - name: Publish to npm
         working-directory: ./npm
         run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-success:
     name: Notify completion
