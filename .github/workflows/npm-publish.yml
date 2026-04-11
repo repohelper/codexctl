@@ -58,19 +58,19 @@ jobs:
           
           case "${{ matrix.platform }}" in
             linux-x64)
-              tar -xzf artifacts/codexctl-x86_64-unknown-linux-gnu.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
+              tar -xzf artifacts/codexctl-x86_64-unknown-linux-gnu/codexctl-x86_64-unknown-linux-gnu.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
               ;;
             linux-arm64)
-              tar -xzf artifacts/codexctl-aarch64-unknown-linux-gnu.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
+              tar -xzf artifacts/codexctl-aarch64-unknown-linux-gnu/codexctl-aarch64-unknown-linux-gnu.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
               ;;
             darwin-x64)
-              tar -xzf artifacts/codexctl-x86_64-apple-darwin.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
+              tar -xzf artifacts/codexctl-x86_64-apple-darwin/codexctl-x86_64-apple-darwin.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
               ;;
             darwin-arm64)
-              tar -xzf artifacts/codexctl-aarch64-apple-darwin.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
+              tar -xzf artifacts/codexctl-aarch64-apple-darwin/codexctl-aarch64-apple-darwin.tar.gz -C npm-platforms/${{ matrix.platform }}/bin
               ;;
             win32-x64)
-              unzip -o artifacts/codexctl-x86_64-pc-windows-msvc.zip -d npm-platforms/${{ matrix.platform }}/bin
+              unzip -o artifacts/codexctl-x86_64-pc-windows-msvc/codexctl-x86_64-pc-windows-msvc.zip -d npm-platforms/${{ matrix.platform }}/bin
               ;;
           esac
           
