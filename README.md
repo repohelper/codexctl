@@ -230,6 +230,18 @@ default_passphrase = false  # Always prompt for passphrase
 
 We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
+## Security
+
+For responsible disclosure and supported-version policy, see [SECURITY.md](./SECURITY.md).
+
+## Support
+
+For usage help and reporting guidance, see [SUPPORT.md](./SUPPORT.md).
+
+## Changelog
+
+Release history is tracked in [CHANGELOG.md](./CHANGELOG.md).
+
 ## License
 
 MIT License - see [LICENSE](./LICENSE) for details.
