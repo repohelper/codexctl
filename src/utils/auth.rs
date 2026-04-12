@@ -50,6 +50,36 @@ pub fn extract_email_from_auth_json(auth_json: &Value) -> Option<String> {
     extract_email_from_token(id_token)
 }
 
+/// Detect the authentication mode represented by `auth.json`.
+///
+/// Returns one of:
+/// - `chatgpt`: ChatGPT/Codex session token based auth
+/// - `api_key`: API key based auth
+/// - `chatgpt+api_key`: both are present
+/// - `unknown`: neither signal is present
+#[must_use]
+pub fn detect_auth_mode(auth_json: &Value) -> String {
+    let has_chatgpt_token = auth_json
+        .get("tokens")
+        .and_then(|t| t.get("id_token"))
+        .and_then(|t| t.as_str())
+        .is_some();
+
+    let has_api_key = auth_json
+        .get("api_key")
+        .or_else(|| auth_json.get("key"))
+        .or_else(|| auth_json.get("access_token"))
+        .and_then(Value::as_str)
+        .is_some();
+
+    match (has_chatgpt_token, has_api_key) {
+        (true, true) => "chatgpt+api_key".to_string(),
+        (true, false) => "chatgpt".to_string(),
+        (false, true) => "api_key".to_string(),
+        (false, false) => "unknown".to_string(),
+    }
+}
+
 /// Read `auth.json` from `codex_dir` and extract the authenticated email.
 ///
 /// Returns `None` if the file is absent, unreadable, or contains no email.
@@ -149,4 +179,46 @@ pub fn extract_usage_info(auth_json: &Value) -> Result<UsageInfo> {
         account_id,
         organizations,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::detect_auth_mode;
+
+    #[test]
+    fn test_detect_auth_mode_chatgpt() {
+        let auth = serde_json::json!({
+            "tokens": {
+                "id_token": "header.payload.signature"
+            }
+        });
+        assert_eq!(detect_auth_mode(&auth), "chatgpt");
+    }
+
+    #[test]
+    fn test_detect_auth_mode_api_key() {
+        let auth = serde_json::json!({
+            "api_key": "sk-test"
+        });
+        assert_eq!(detect_auth_mode(&auth), "api_key");
+    }
+
+    #[test]
+    fn test_detect_auth_mode_hybrid() {
+        let auth = serde_json::json!({
+            "tokens": {
+                "id_token": "header.payload.signature"
+            },
+            "api_key": "sk-test"
+        });
+        assert_eq!(detect_auth_mode(&auth), "chatgpt+api_key");
+    }
+
+    #[test]
+    fn test_detect_auth_mode_unknown() {
+        let auth = serde_json::json!({
+            "foo": "bar"
+        });
+        assert_eq!(detect_auth_mode(&auth), "unknown");
+    }
 }

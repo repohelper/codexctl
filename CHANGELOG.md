@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-04-12
+
+### Changed
+
+- Updated CLI auth guidance to current Codex sign-in flow (`codex` first-run sign in with ChatGPT account or API key).
+- Clarified in CLI output/help and README that ChatGPT/Codex plans and OpenAI API usage are separate offerings with separate billing.
+- Updated `usage` behavior for API-key-only profiles so it no longer fails when ChatGPT plan claims are missing.
+
+### Added
+
+- Added auth mode detection (`chatgpt`, `api_key`, `chatgpt+api_key`, `unknown`) when saving profiles.
+- Added auth mode visibility in `codexctl list --detailed`.
+- Added tests for auth mode detection.
+
 ## [0.8.0] - 2026-04-12
 
 ### Fixed

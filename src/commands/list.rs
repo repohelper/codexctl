@@ -74,6 +74,7 @@ pub async fn execute(config: Config, detailed: bool, quiet: bool) -> Result<()> 
         table.add_row(Row::new(vec![
             Cell::new("Profile").style_spec("Fb"),
             Cell::new("Email").style_spec("Fb"),
+            Cell::new("Auth Mode").style_spec("Fb"),
             Cell::new("Last Updated").style_spec("Fb"),
             Cell::new("Description").style_spec("Fb"),
         ]));
@@ -87,6 +88,10 @@ pub async fn execute(config: Config, detailed: bool, quiet: bool) -> Result<()> 
                 || "-".to_string(),
                 |m| m.updated_at.format("%Y-%m-%d %H:%M").to_string(),
             );
+            let auth_mode = meta
+                .as_ref()
+                .map(|m| m.auth_mode.clone())
+                .unwrap_or_else(|| "-".to_string());
             let desc = meta
                 .as_ref()
                 .and_then(|m| m.description.clone())
@@ -95,6 +100,7 @@ pub async fn execute(config: Config, detailed: bool, quiet: bool) -> Result<()> 
             table.add_row(Row::new(vec![
                 Cell::new(&name).style_spec("Fg"),
                 Cell::new(&email),
+                Cell::new(&auth_mode),
                 Cell::new(&updated),
                 Cell::new(&desc),
             ]));

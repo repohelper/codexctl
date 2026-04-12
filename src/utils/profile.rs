@@ -12,9 +12,14 @@ pub struct ProfileMeta {
     pub updated_at: DateTime<Utc>,
     pub email: Option<String>,
     pub description: Option<String>,
+    #[serde(default = "default_auth_mode")]
     pub auth_mode: String,
     pub version: String,
     pub encrypted: bool,
+}
+
+fn default_auth_mode() -> String {
+    String::from("unknown")
 }
 
 impl ProfileMeta {
@@ -27,7 +32,7 @@ impl ProfileMeta {
             updated_at: now,
             email,
             description,
-            auth_mode: String::from("chatgpt"),
+            auth_mode: default_auth_mode(),
             version: String::from(env!("CARGO_PKG_VERSION")),
             encrypted: false,
         }
@@ -211,7 +216,7 @@ mod tests {
         assert_eq!(meta.name, "test-profile");
         assert_eq!(meta.email, Some("test@example.com".to_string()));
         assert_eq!(meta.description, Some("Test description".to_string()));
-        assert_eq!(meta.auth_mode, "chatgpt");
+        assert_eq!(meta.auth_mode, "unknown");
         assert_eq!(meta.version, env!("CARGO_PKG_VERSION"));
     }
 

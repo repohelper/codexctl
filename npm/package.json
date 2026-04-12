@@ -1,6 +1,6 @@
 {
   "name": "codexctl",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Codex Controller - Full control plane for Codex CLI",
   "repository": {
     "type": "git",
@@ -20,11 +20,11 @@
     "codexctl": "./codexctl.js"
   },
   "optionalDependencies": {
-    "@codexctl/linux-x64": "^0.8.0",
-    "@codexctl/linux-arm64": "^0.8.0",
-    "@codexctl/darwin-x64": "^0.8.0",
-    "@codexctl/darwin-arm64": "^0.8.0",
-    "@codexctl/win32-x64": "^0.8.0"
+    "@codexctl/linux-x64": "^0.9.0",
+    "@codexctl/linux-arm64": "^0.9.0",
+    "@codexctl/darwin-x64": "^0.9.0",
+    "@codexctl/darwin-arm64": "^0.9.0",
+    "@codexctl/win32-x64": "^0.9.0"
   },
   "files": [
     "codexctl.js",

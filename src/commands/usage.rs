@@ -13,7 +13,9 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
     let auth_path = codex_dir.join("auth.json");
 
     if !auth_path.exists() {
-        anyhow::bail!("No `Codex` authentication found. Please login with: codex login");
+        anyhow::bail!(
+            "No `Codex` authentication found. Run `codex` and sign in with ChatGPT or an API key."
+        );
     }
 
     let Ok(content) = tokio::fs::read_to_string(&auth_path).await else {
@@ -24,11 +26,18 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
         anyhow::bail!("Failed to parse auth.json");
     };
 
-    // Extract usage info from the `JWT` tokens
-    let usage_info = extract_usage_info(&auth_json)?;
-
-    // Display usage info
-    display_usage_table(&usage_info);
+    // Extract usage info from ChatGPT/Codex JWT claims when present.
+    let usage_info = extract_usage_info(&auth_json).ok();
+    if let Some(info) = usage_info.as_ref() {
+        display_usage_table(info);
+    } else if !quiet {
+        println!("\n{}", "`Codex` plan claims unavailable".yellow().bold());
+        println!("  This profile appears to be API-key-only auth.");
+        println!(
+            "  Use {} to inspect API quota/billing.",
+            "`codexctl usage --realtime`".cyan()
+        );
+    }
 
     // Fetch real-time quota if requested
     if realtime {
@@ -42,11 +51,13 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
         }
     }
 
-    // Display subscription status
-    display_subscription_status(&usage_info);
+    // Display subscription status when ChatGPT/Codex plan claims are available.
+    if let Some(info) = usage_info.as_ref() {
+        display_subscription_status(info);
+    }
 
-    // Display helpful info about limits
-    display_limits_info(&usage_info);
+    // Display helpful info about plan/API limits.
+    display_limits_info(usage_info.is_some());
 
     Ok(())
 }
@@ -65,7 +76,12 @@ async fn fetch_realtime_quota(
 /// Display real-time quota information
 #[allow(clippy::cast_precision_loss)]
 fn display_realtime_quota(quota: &crate::utils::api::RealTimeQuota) {
-    println!("\n{}", "📈 Real-Time Quota (from OpenAI API)".bold().cyan());
+    println!(
+        "\n{}",
+        "📈 Real-Time API Quota (separate from ChatGPT/Codex plans)"
+            .bold()
+            .cyan()
+    );
     println!();
 
     let mut table = Table::new();
@@ -370,43 +386,43 @@ fn display_usage_table(info: &UsageInfo) {
 fn display_subscription_status(info: &UsageInfo) {
     println!();
 
-    match info.plan_type.as_str() {
-        "team" => {
-            println!("{}", "✓ Team Plan Active".green().bold());
-            println!("  • Unlimited GPT-4 requests (rate limited)");
-            println!("  • Higher rate limits than personal plan");
-            println!("  • Shared workspace features");
+    match info.plan_type.to_lowercase().as_str() {
+        "team" | "business" => {
+            println!("{}", "✓ ChatGPT Team/Business Plan Detected".green().bold());
         }
         "enterprise" => {
-            println!("{}", "✓ Enterprise Plan Active".magenta().bold());
-            println!("  • Unlimited GPT-4 requests");
-            println!("  • Highest rate limits");
-            println!("  • Admin controls & audit logs");
-            println!("  • SSO integration");
+            println!("{}", "✓ ChatGPT Enterprise Plan Detected".magenta().bold());
         }
-        "personal" => {
-            println!("{}", "✓ Personal Plan Active".yellow().bold());
-            println!("  • Limited GPT-4 requests per week");
-            println!("  • Standard rate limits");
+        "personal" | "plus" | "pro" | "free" => {
+            println!("{}", "✓ Personal ChatGPT Plan Detected".yellow().bold());
         }
         _ => {
             println!("{}", "⚠ Unknown Plan Type".yellow().bold());
         }
     }
+    println!("  • Plan claims come from local `auth.json` session tokens");
+    println!("  • ChatGPT/Codex plan access and API billing are separate");
 }
 
-fn display_limits_info(_info: &UsageInfo) {
+fn display_limits_info(has_chatgpt_claims: bool) {
     println!();
     println!("{}", "📋 Usage Limits".bold());
-    println!("  To view real-time usage limits and remaining quota,");
+    if has_chatgpt_claims {
+        println!("  `codexctl usage` shows ChatGPT/Codex plan claims from local auth tokens.");
+    }
+    println!("  `codexctl usage --realtime` queries OpenAI API billing/quota.");
     println!(
-        "  visit: {}",
+        "  API limits page: {}",
         "https://platform.openai.com/settings/organization/limits"
             .cyan()
             .underline()
     );
     println!();
     println!("{}", "💡 Tips:".dimmed());
+    println!(
+        "  {}",
+        "• ChatGPT subscriptions and OpenAI API usage are billed separately".dimmed()
+    );
     println!(
         "  {}",
         "• `Codex` CLI shows usage warnings when approaching limits".dimmed()

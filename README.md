@@ -8,7 +8,7 @@
 
 **Prerequisite**: Requires [@openai/codex](https://www.npmjs.com/package/@openai/codex) to be installed first.
 
-**Version**: 0.8.0 | **Author**: [Bhanu Korthiwada](https://github.com/BhanuKorthiwada)
+**Version**: 0.9.0 | **Author**: [Bhanu Korthiwada](https://github.com/BhanuKorthiwada)
 
 🔗 **Website**: [codexctl on GitHub](https://github.com/repohelper/codexctl)  
 📖 **Documentation**: See README for usage
@@ -32,6 +32,19 @@ Use it when you need to:
 - 🤖 **Auto-switch** based on quota availability
 - 📊 **Monitor usage** across all your Codex accounts
 - 🌳 **Use concurrently** - different accounts in different terminals
+
+---
+
+## Codex vs API (Important)
+
+- ChatGPT/Codex plans and the OpenAI API are separate products with separate billing.
+- A ChatGPT plan does not automatically include API usage credits.
+- Codex CLI can authenticate with either a ChatGPT account or an API key.
+- `codexctl usage` reads ChatGPT/Codex plan claims from local auth tokens.
+- `codexctl usage --realtime` checks API billing/quota via OpenAI API endpoints.
+- References:
+  - Codex CLI auth flow: https://developers.openai.com/codex/cli
+  - API vs ChatGPT billing separation: https://help.openai.com/en/articles/8156019
 
 ---
 
@@ -119,7 +132,7 @@ codexctl load <name>              Load a saved profile and switch to it
 codexctl list                     List all saved profiles
 codexctl delete <name>            Delete a saved profile
 codexctl status                   Show current profile status
-codexctl usage                    Show usage limits and subscription info
+codexctl usage                    Show plan claims and API quota context
 codexctl verify                   Verify all profiles' authentication status
 codexctl backup                   Create a backup of current profile
 codexctl run --profile <name> -- <cmd>

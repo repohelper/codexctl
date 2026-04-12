@@ -49,7 +49,7 @@ async fn run_health_checks(config: &Config) -> Vec<(String, String, bool, String
         if auth_exists {
             "none".to_string()
         } else {
-            "Run: codex login".to_string()
+            "Run: codex (then sign in with ChatGPT or API key)".to_string()
         },
     ));
     let mut auth_valid = false;

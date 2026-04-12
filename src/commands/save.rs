@@ -69,6 +69,7 @@ pub async fn execute(
 
     // Extract email from existing auth.json if present
     let email = read_email_from_codex_dir(codex_dir).await;
+    let auth_mode = detect_live_auth_mode(codex_dir).await;
 
     // Copy critical files
     let files_to_copy = get_critical_files();
@@ -95,6 +96,7 @@ pub async fn execute(
 
     // Save metadata without rewriting copied profile files.
     let mut meta = ProfileMeta::new(name.clone(), email.clone(), description.clone());
+    meta.auth_mode = auth_mode;
     meta.encrypted = is_encrypted;
     meta.update();
     let mut meta_json = serde_json::to_vec_pretty(&meta).context("Failed to serialize metadata")?;
@@ -129,4 +131,15 @@ pub async fn execute(
     }
 
     Ok(())
+}
+
+async fn detect_live_auth_mode(codex_dir: &std::path::Path) -> String {
+    let auth_path = codex_dir.join("auth.json");
+    let Ok(content) = tokio::fs::read_to_string(&auth_path).await else {
+        return "unknown".to_string();
+    };
+    let Ok(auth_json) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return "unknown".to_string();
+    };
+    crate::utils::auth::detect_auth_mode(&auth_json)
 }

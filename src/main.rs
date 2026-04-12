@@ -97,13 +97,13 @@ pub enum Commands {
     #[command(alias = "st", alias = "current")]
     Status,
 
-    /// Show usage limits and subscription info
+    /// Show ChatGPT/Codex plan claims and API usage context
     #[command(alias = "u")]
     Usage {
         /// Show usage for all profiles
         #[arg(short, long)]
         all: bool,
-        /// Fetch real-time quota from `OpenAI` API (requires API key)
+        /// Fetch real-time quota from `OpenAI` API (API billing is separate from ChatGPT/Codex plans)
         #[arg(short, long)]
         realtime: bool,
     },
