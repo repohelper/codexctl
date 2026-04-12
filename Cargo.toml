@@ -1,6 +1,6 @@
 [package]
 name = "codexctl"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 authors = ["Bhanu Korthiwada"]
 description = "Codex Controller - Full control plane for Codex CLI"

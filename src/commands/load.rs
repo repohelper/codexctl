@@ -1,6 +1,6 @@
 use crate::utils::auth::read_email_from_codex_dir;
 use crate::utils::config::Config;
-use crate::utils::files::{create_backup, get_critical_files};
+use crate::utils::files::{create_backup, get_critical_files, write_bytes_preserve_permissions};
 use crate::utils::transaction::ProfileTransaction;
 use crate::utils::validation::ProfileName;
 use anyhow::{Context as _, Result};
@@ -189,8 +189,7 @@ async fn do_load(
     // Write decrypted auth.json into the staging dir (overwrites encrypted version)
     if let Some(ref decrypted) = decrypted_auth_staging {
         let staging_auth_path = txn.staging_dir().join("auth.json");
-        tokio::fs::write(&staging_auth_path, decrypted)
-            .await
+        write_bytes_preserve_permissions(&staging_auth_path, decrypted)
             .context("Failed to write decrypted auth.json to staging")?;
     }
 

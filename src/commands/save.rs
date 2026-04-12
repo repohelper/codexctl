@@ -1,7 +1,9 @@
 use crate::utils::auth::read_email_from_codex_dir;
 use crate::utils::config::Config;
-use crate::utils::files::{copy_profile_files, get_critical_files};
-use crate::utils::profile::Profile;
+use crate::utils::files::{
+    copy_profile_files, get_critical_files, write_bytes_preserve_permissions,
+};
+use crate::utils::profile::ProfileMeta;
 use crate::utils::validation::ProfileName;
 use anyhow::{Context as _, Result};
 use colored::Colorize as _;
@@ -44,6 +46,11 @@ pub async fn execute(
             return Ok(());
         }
     }
+    if profile_dir.exists() {
+        tokio::fs::remove_dir_all(&profile_dir)
+            .await
+            .with_context(|| format!("Failed to remove existing profile '{}'", name))?;
+    }
 
     // Create progress bar with modern styling (unless quiet)
     let pb = if quiet {
@@ -63,33 +70,38 @@ pub async fn execute(
     // Extract email from existing auth.json if present
     let email = read_email_from_codex_dir(codex_dir).await;
 
-    // Create profile
-    let mut profile = Profile::new(name.clone(), email.clone(), description.clone());
-
     // Copy critical files
     let files_to_copy = get_critical_files();
     let copied = copy_profile_files(codex_dir, &profile_dir, files_to_copy)
         .with_context(|| "Failed to copy profile files")?;
 
-    // Add files to profile object
-    for file in &copied {
-        let file_path = profile_dir.join(file.split('/').next().unwrap_or(file));
-        if file_path.exists() && file_path.is_file() {
-            let Ok(content) = tokio::fs::read(&file_path).await else {
-                continue;
-            };
-            profile.add_file(&file_path, content);
-        }
-    }
-
     // Handle passphrase
     let secret_passphrase = passphrase.filter(|p| !p.is_empty());
     let is_encrypted = secret_passphrase.is_some();
 
-    // Save profile with optional encryption
-    profile
-        .save_to_disk_encrypted(&profile_dir, secret_passphrase.as_ref())
-        .with_context(|| "Failed to save profile")?;
+    // Encrypt auth.json in-place only, preserving file permissions.
+    if let Some(pass) = secret_passphrase.as_ref() {
+        let auth_path = profile_dir.join("auth.json");
+        if auth_path.exists() && auth_path.is_file() {
+            let auth_content = tokio::fs::read(&auth_path)
+                .await
+                .context("Failed to read auth.json for encryption")?;
+            let encrypted = crate::utils::crypto::encrypt(&auth_content, Some(pass))
+                .context("Failed to encrypt auth.json")?;
+            write_bytes_preserve_permissions(&auth_path, &encrypted)
+                .context("Failed to write encrypted auth.json")?;
+        }
+    }
+
+    // Save metadata without rewriting copied profile files.
+    let mut meta = ProfileMeta::new(name.clone(), email.clone(), description.clone());
+    meta.encrypted = is_encrypted;
+    meta.update();
+    let mut meta_json = serde_json::to_vec_pretty(&meta).context("Failed to serialize metadata")?;
+    meta_json.push(b'\n');
+    let meta_path = profile_dir.join("profile.json");
+    write_bytes_preserve_permissions(&meta_path, &meta_json)
+        .context("Failed to write profile metadata")?;
 
     if let Some(bar) = pb {
         bar.finish_and_clear();

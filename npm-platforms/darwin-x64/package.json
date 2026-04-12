@@ -1,6 +1,6 @@
 {
   "name": "@codexctl/darwin-x64",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "The macOS x86_64 binary for codexctl",
   "repository": {
     "type": "git",

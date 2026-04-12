@@ -1,4 +1,6 @@
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context as _, Result};
 use walkdir::WalkDir;
@@ -29,6 +31,9 @@ pub fn copy_profile_files(src: &Path, dst: &Path, files: &[&str]) -> Result<Vec<
                     dst_path.display()
                 )
             })?;
+            if let Ok(metadata) = std::fs::metadata(&src_path) {
+                let _ = std::fs::set_permissions(&dst_path, metadata.permissions());
+            }
             copied.push((*pattern).to_string());
         } else if src_path.is_dir() {
             // Copy entire directory
@@ -48,6 +53,9 @@ pub fn copy_profile_files(src: &Path, dst: &Path, files: &[&str]) -> Result<Vec<
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(dst)
         .with_context(|| format!("Failed to create directory: {}", dst.display()))?;
+    if let Ok(metadata) = std::fs::metadata(src) {
+        let _ = std::fs::set_permissions(dst, metadata.permissions());
+    }
 
     for entry in WalkDir::new(src)
         .into_iter()
@@ -63,9 +71,15 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
             if let Some(parent) = destination.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(path, destination)?;
+            std::fs::copy(path, &destination)?;
+            if let Ok(metadata) = std::fs::metadata(path) {
+                let _ = std::fs::set_permissions(&destination, metadata.permissions());
+            }
         } else if path.is_dir() && path != src {
-            std::fs::create_dir_all(destination)?;
+            std::fs::create_dir_all(&destination)?;
+            if let Ok(metadata) = std::fs::metadata(path) {
+                let _ = std::fs::set_permissions(&destination, metadata.permissions());
+            }
         }
     }
 
@@ -91,6 +105,63 @@ pub fn create_backup(codex_dir: &Path, backup_dir: &Path) -> Result<PathBuf> {
     copy_dir_recursive(codex_dir, &backup_path)?;
 
     Ok(backup_path)
+}
+
+/// Write bytes to an existing path while preserving existing filesystem permissions.
+///
+/// Uses a temp-file + rename strategy to avoid partial writes.
+///
+/// # Errors
+///
+/// Returns an error if write, rename, or permission operations fail.
+pub fn write_bytes_preserve_permissions(path: &Path, data: &[u8]) -> Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent)
+        .with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
+
+    let existing_permissions = std::fs::metadata(path).ok().map(|m| m.permissions());
+    let temp_path = unique_temp_path(parent, ".codexctl_write");
+
+    let mut file = std::fs::File::create(&temp_path)
+        .with_context(|| format!("Failed to create temp file: {}", temp_path.display()))?;
+    file.write_all(data)
+        .with_context(|| format!("Failed to write temp file: {}", temp_path.display()))?;
+    file.sync_all()
+        .with_context(|| format!("Failed to sync temp file: {}", temp_path.display()))?;
+    drop(file);
+
+    if let Some(perms) = existing_permissions {
+        std::fs::set_permissions(&temp_path, perms).with_context(|| {
+            format!(
+                "Failed to preserve permissions for temp file: {}",
+                temp_path.display()
+            )
+        })?;
+    }
+
+    #[cfg(windows)]
+    if path.exists() {
+        std::fs::remove_file(path)
+            .with_context(|| format!("Failed to remove existing file: {}", path.display()))?;
+    }
+
+    std::fs::rename(&temp_path, path).with_context(|| {
+        format!(
+            "Failed to atomically replace {} with {}",
+            path.display(),
+            temp_path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
+fn unique_temp_path(parent: &Path, prefix: &str) -> PathBuf {
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let rand_suffix: u64 = rand::random::<u64>();
+    parent.join(format!("{prefix}_{ts}_{rand_suffix:016x}"))
 }
 
 /// Check if codex CLI is installed
@@ -211,5 +282,34 @@ mod tests {
         // This is a simple smoke test - can't guarantee codex is/isn't installed
         let _result = check_codex_installed();
         // Result will be true or false depending on system
+    }
+
+    #[test]
+    fn test_write_bytes_preserve_permissions_preserves_bytes() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("config.toml");
+        let original = b"line1\r\nline2\n\xff\xfebinary";
+        std::fs::write(&path, original).unwrap();
+
+        let updated = b"new\r\ncontent\n\x00\xff";
+        write_bytes_preserve_permissions(&path, updated).unwrap();
+
+        let actual = std::fs::read(&path).unwrap();
+        assert_eq!(actual, updated);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_write_bytes_preserve_permissions_preserves_mode_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("auth.json");
+        std::fs::write(&path, b"{\"token\":\"x\"}").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        write_bytes_preserve_permissions(&path, b"{\"token\":\"y\"}").unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
     }
 }

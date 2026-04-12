@@ -40,11 +40,13 @@ impl ProfileMeta {
 
 /// Full profile data including metadata and file list
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Profile {
     pub meta: ProfileMeta,
     pub files: std::collections::HashMap<String, Vec<u8>>, // filename -> content
 }
 
+#[allow(dead_code)]
 impl Profile {
     #[must_use]
     pub fn new(name: String, email: Option<String>, description: Option<String>) -> Self {
@@ -80,13 +82,13 @@ impl Profile {
         let meta_path = dir.join("profile.json");
         let meta_json = serde_json::to_string_pretty(&self.meta)
             .context("Failed to serialize profile metadata")?;
-        std::fs::write(&meta_path, meta_json)
+        crate::utils::files::write_bytes_preserve_permissions(&meta_path, meta_json.as_bytes())
             .with_context(|| format!("Failed to write metadata to {}", meta_path.display()))?;
 
         // Save files
         for (filename, content) in &self.files {
             let file_path = dir.join(filename);
-            std::fs::write(&file_path, content)
+            crate::utils::files::write_bytes_preserve_permissions(&file_path, content)
                 .with_context(|| format!("Failed to write file: {}", file_path.display()))?;
         }
 
@@ -116,7 +118,7 @@ impl Profile {
         meta.update();
         let meta_json =
             serde_json::to_string_pretty(&meta).context("Failed to serialize profile metadata")?;
-        std::fs::write(&meta_path, meta_json)
+        crate::utils::files::write_bytes_preserve_permissions(&meta_path, meta_json.as_bytes())
             .with_context(|| format!("Failed to write metadata to {}", meta_path.display()))?;
 
         // Save files (encrypt auth.json if passphrase provided)
@@ -129,7 +131,7 @@ impl Profile {
                 content.clone()
             };
 
-            std::fs::write(&file_path, final_content)
+            crate::utils::files::write_bytes_preserve_permissions(&file_path, &final_content)
                 .with_context(|| format!("Failed to write file: {}", file_path.display()))?;
         }
 

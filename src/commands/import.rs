@@ -68,15 +68,17 @@ async fn extract_tarball(data: &[u8], dest: &Path) -> Result<()> {
     let mut archive = Archive::new(cursor);
 
     tokio::fs::create_dir_all(dest).await?;
-    archive.set_preserve_permissions(false);
+    archive.set_preserve_permissions(true);
 
     for entry in archive.entries()? {
         let mut entry = entry?;
         let entry_path = entry.path()?;
-        if !entry_path
-            .components()
-            .all(|c| matches!(c, std::path::Component::Normal(_)))
-        {
+        if !entry_path.components().all(|c| {
+            matches!(
+                c,
+                std::path::Component::Normal(_) | std::path::Component::CurDir
+            )
+        }) {
             anyhow::bail!(
                 "Unsafe path in tarball: {} (path traversal rejected)",
                 entry_path.display()

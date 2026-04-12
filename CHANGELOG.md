@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-04-12
+
+### Fixed
+
+- Preserved file permissions and byte-level content during profile save/load paths to avoid cross-platform corruption.
+- Stopped rewriting copied profile files during `save`; now only `auth.json` (when encrypted) and `profile.json` are written.
+- Preserved file modes when decrypting `auth.json` into staging during profile load.
+- Enabled tar permission preservation during profile import.
+- Fixed import path validation to accept safe `./` tar entries while still rejecting path traversal.
+
+### Added
+
+- Added atomic write helper for safe file replacement while preserving existing permissions.
+- Added regression tests for byte fidelity (including CRLF/non-UTF8 payloads) and Unix permission preservation.
+
 ## [0.7.0] - 2026-04-11
 
 ### Changed
