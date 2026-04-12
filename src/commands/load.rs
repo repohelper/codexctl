@@ -1,7 +1,6 @@
 use crate::utils::auth::read_email_from_codex_dir;
 use crate::utils::config::Config;
-use crate::utils::files::{create_backup, get_critical_files, write_bytes_preserve_permissions};
-use crate::utils::transaction::ProfileTransaction;
+use crate::utils::files::{create_backup, write_bytes_preserve_permissions};
 use crate::utils::validation::ProfileName;
 use anyhow::{Context as _, Result};
 use colored::Colorize as _;
@@ -162,40 +161,29 @@ async fn do_load(
     // Handle encrypted profiles
     let secret_passphrase = passphrase.filter(|p| !p.is_empty());
 
-    // If profile is encrypted, decrypt auth.json to the staging directory
+    // Load/decrypt auth.json from the profile.
     let auth_path = profile_dir.join("auth.json");
-    let decrypted_auth_staging = if auth_path.exists() {
-        let auth_content = tokio::fs::read(&auth_path).await?;
-        if crate::utils::crypto::is_encrypted(&auth_content) {
-            let decrypted =
-                crate::utils::crypto::decrypt(&auth_content, secret_passphrase.as_ref())
-                    .context("Failed to decrypt auth.json - wrong passphrase?")?;
-            Some(decrypted)
-        } else {
-            None
-        }
+    if !auth_path.exists() {
+        anyhow::bail!("Profile '{name}' does not contain auth.json");
+    }
+    let auth_content = tokio::fs::read(&auth_path).await?;
+    let auth_to_apply = if crate::utils::crypto::is_encrypted(&auth_content) {
+        crate::utils::crypto::decrypt(&auth_content, secret_passphrase.as_ref())
+            .context("Failed to decrypt auth.json - wrong passphrase?")?
     } else {
-        None
+        auth_content
     };
 
-    // Atomically switch to the new profile using a staged transaction.
-    let files_to_copy = get_critical_files();
-
-    let mut txn =
-        ProfileTransaction::new(codex_dir).context("Failed to initialise profile transaction")?;
-    txn.stage_profile(&profile_dir, files_to_copy)
-        .context("Failed to stage profile files")?;
-
-    // Write decrypted auth.json into the staging dir (overwrites encrypted version)
-    if let Some(ref decrypted) = decrypted_auth_staging {
-        let staging_auth_path = txn.staging_dir().join("auth.json");
-        write_bytes_preserve_permissions(&staging_auth_path, decrypted)
-            .context("Failed to write decrypted auth.json to staging")?;
+    // Keep all existing codex state (sessions/history/etc.) and only replace auth.json.
+    tokio::fs::create_dir_all(codex_dir)
+        .await
+        .with_context(|| format!("Failed to create codex directory: {}", codex_dir.display()))?;
+    if let Some(ref bar) = pb {
+        bar.set_message("Switching auth profile...");
     }
-
-    txn.commit()
-        .context("Failed to atomically commit profile")?;
-    txn.cleanup_original()?;
+    let target_auth = codex_dir.join("auth.json");
+    write_bytes_preserve_permissions(&target_auth, &auth_to_apply)
+        .context("Failed to write auth.json to codex directory")?;
 
     if let Some(bar) = pb {
         bar.finish_and_clear();

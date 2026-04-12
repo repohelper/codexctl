@@ -1,8 +1,10 @@
 use crate::utils::config::Config;
-use crate::utils::transaction::ProfileTransaction;
+use crate::utils::files::write_bytes_preserve_permissions;
 use crate::utils::validation::ProfileName;
 use anyhow::{Context as _, Result};
 use colored::Colorize as _;
+use std::io::ErrorKind;
+use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 
@@ -25,15 +27,8 @@ pub async fn execute(
         anyhow::bail!("No command specified to run");
     }
 
-    // Atomically switch to the target profile.
-    // The transaction saves the original codex dir internally so it can be
-    // restored atomically after the command finishes.
-    let mut txn =
-        ProfileTransaction::new(codex_dir).context("Failed to initialise profile transaction")?;
-    txn.stage_profile(&profile_dir, crate::utils::files::get_critical_files())
-        .context("Failed to stage profile")?;
-    txn.commit()
-        .context("Failed to atomically load profile for run")?;
+    let profile_auth = load_profile_auth(&profile_dir, &profile).await?;
+    let original_auth = apply_profile_auth(codex_dir, &profile_auth).await?;
 
     // Execute command
     let cmd = &command[0];
@@ -51,31 +46,31 @@ pub async fn execute(
     // Log to history
     let _ = crate::commands::history::log_command(&config, &profile, &command.join(" ")).await;
 
-    let status = Command::new(cmd)
+    let status_result = Command::new(cmd)
         .args(args)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .stdin(Stdio::inherit())
         .status()
         .await
-        .with_context(|| format!("Failed to execute command: {cmd}"))?;
+        .with_context(|| format!("Failed to execute command: {cmd}"));
 
-    // Atomically restore the original profile.
-    // rollback() renames the saved original back into place — no partial state.
-    if let Err(e) = txn.rollback()
+    // Always restore original auth after command execution.
+    if let Err(e) = restore_original_auth(codex_dir, original_auth).await
         && !quiet
     {
         eprintln!(
-            "{} Warning: Could not fully restore original profile: {}",
+            "{} Warning: Could not fully restore original auth: {}",
             "⚠".yellow(),
             e
         );
     }
+    let status = status_result?;
 
     if !quiet {
         if status.success() {
             println!(
-                "\n{} Command completed, restored original profile",
+                "\n{} Command completed, restored original auth",
                 "✓".green()
             );
         } else {
@@ -85,6 +80,64 @@ pub async fn execute(
                 status.code()
             );
         }
+    }
+
+    Ok(())
+}
+
+async fn load_profile_auth(profile_dir: &Path, profile_name: &str) -> Result<Vec<u8>> {
+    let profile_auth_path = profile_dir.join("auth.json");
+    if !profile_auth_path.exists() {
+        anyhow::bail!("Profile '{profile_name}' does not contain auth.json");
+    }
+
+    let profile_auth = tokio::fs::read(&profile_auth_path)
+        .await
+        .with_context(|| format!("Failed to read {}", profile_auth_path.display()))?;
+
+    if crate::utils::crypto::is_encrypted(&profile_auth) {
+        anyhow::bail!(
+            "Profile '{profile_name}' is encrypted. Use 'codexctl load {profile_name} --passphrase ...' instead."
+        );
+    }
+
+    Ok(profile_auth)
+}
+
+async fn apply_profile_auth(codex_dir: &Path, profile_auth: &[u8]) -> Result<Option<Vec<u8>>> {
+    tokio::fs::create_dir_all(codex_dir)
+        .await
+        .with_context(|| format!("Failed to create codex directory: {}", codex_dir.display()))?;
+
+    let auth_path = codex_dir.join("auth.json");
+    let original_auth = match tokio::fs::read(&auth_path).await {
+        Ok(content) => Some(content),
+        Err(e) if e.kind() == ErrorKind::NotFound => None,
+        Err(e) => {
+            return Err(e).with_context(|| {
+                format!("Failed to read existing auth file: {}", auth_path.display())
+            });
+        }
+    };
+
+    write_bytes_preserve_permissions(&auth_path, profile_auth)
+        .with_context(|| format!("Failed to apply profile auth to {}", auth_path.display()))?;
+
+    Ok(original_auth)
+}
+
+async fn restore_original_auth(codex_dir: &Path, original_auth: Option<Vec<u8>>) -> Result<()> {
+    let auth_path = codex_dir.join("auth.json");
+    match original_auth {
+        Some(content) => write_bytes_preserve_permissions(&auth_path, &content)
+            .with_context(|| format!("Failed to restore {}", auth_path.display()))?,
+        None => match tokio::fs::remove_file(&auth_path).await {
+            Ok(()) => {}
+            Err(e) if e.kind() == ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(e).with_context(|| format!("Failed to remove {}", auth_path.display()));
+            }
+        },
     }
 
     Ok(())

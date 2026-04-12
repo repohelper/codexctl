@@ -18,6 +18,7 @@ use crate::utils::files::{copy_dir_recursive, copy_profile_files};
 /// 5. [`rollback`] – restore the pre-commit snapshot (can be called after commit too).
 ///
 /// On `Drop`, any un-committed staging directory is removed automatically.
+#[allow(dead_code)]
 pub struct ProfileTransaction {
     target_dir: PathBuf,
     /// Temp directory for the incoming profile (same filesystem as target).
@@ -28,6 +29,7 @@ pub struct ProfileTransaction {
     committed: bool,
 }
 
+#[allow(dead_code)]
 impl ProfileTransaction {
     /// Create a new transaction targeting `target_dir`.
     ///
@@ -221,7 +223,7 @@ impl Drop for ProfileTransaction {
 ///
 /// Uses a combination of timestamp and random suffix to avoid collisions
 /// under concurrent access.
-#[allow(clippy::unnecessary_wraps)]
+#[allow(dead_code, clippy::unnecessary_wraps)]
 fn unique_sibling_path(parent: &Path, prefix: &str) -> Result<PathBuf> {
     use std::time::{SystemTime, UNIX_EPOCH};
 
