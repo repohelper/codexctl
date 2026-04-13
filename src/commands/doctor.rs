@@ -5,6 +5,7 @@ use crate::utils::config::Config;
 use anyhow::Result;
 use colored::Colorize as _;
 use prettytable::{Cell, Row, Table, format};
+use serde::Serialize;
 
 async fn run_health_checks(config: &Config) -> Vec<(String, String, bool, String)> {
     let mut checks: Vec<(String, String, bool, String)> = Vec::new();
@@ -171,8 +172,8 @@ async fn run_health_checks(config: &Config) -> Vec<(String, String, bool, String
     checks
 }
 
-pub async fn execute(config: Config, quiet: bool) -> Result<()> {
-    if !quiet {
+pub async fn execute(config: Config, json: bool, quiet: bool) -> Result<()> {
+    if !json && !quiet {
         println!("\n{} Running health check...\n", "🏥".cyan());
     }
     let checks = run_health_checks(&config).await;
@@ -182,7 +183,26 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
             issues += 1;
         }
     }
-    if !quiet {
+    if json {
+        let payload = DoctorSummary {
+            issues,
+            healthy: issues == 0,
+            checks: checks
+                .iter()
+                .map(|(check, status, ok, fix)| DoctorCheck {
+                    name: check.clone(),
+                    status: status.clone(),
+                    ok: *ok,
+                    fix: if fix == "none" {
+                        None
+                    } else {
+                        Some(fix.clone())
+                    },
+                })
+                .collect(),
+        };
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+    } else if !quiet {
         let mut table = Table::new();
         table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
         table.add_row(Row::new(vec![
@@ -225,4 +245,19 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
         anyhow::bail!("{issues} issue(s) found. See 'Fix' column above.");
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct DoctorSummary {
+    healthy: bool,
+    issues: usize,
+    checks: Vec<DoctorCheck>,
+}
+
+#[derive(Debug, Serialize)]
+struct DoctorCheck {
+    name: String,
+    status: String,
+    ok: bool,
+    fix: Option<String>,
 }

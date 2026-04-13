@@ -8,9 +8,10 @@ use crate::utils::config::Config;
 use anyhow::Result;
 use colored::Colorize as _;
 use prettytable::{Cell, Row, Table, format};
+use serde::Serialize;
 
 /// Verify all profiles' authentication status
-pub async fn execute(config: Config, quiet: bool) -> Result<()> {
+pub async fn execute(config: Config, json: bool, quiet: bool) -> Result<()> {
     let profiles_dir = config.profiles_dir();
 
     if !profiles_dir.exists() {
@@ -56,7 +57,12 @@ pub async fn execute(config: Config, quiet: bool) -> Result<()> {
         score(&a.1).cmp(&score(&b.1))
     });
 
-    if !quiet {
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&build_verify_summary(&results))?
+        );
+    } else if !quiet {
         display_results(&results);
     }
 
@@ -232,11 +238,79 @@ fn display_results(results: &[(String, ProfileStatus)]) {
     println!();
 }
 
+fn build_verify_summary(results: &[(String, ProfileStatus)]) -> VerifySummary {
+    let valid = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Valid { .. }))
+        .count();
+    let invalid = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Invalid(_)))
+        .count();
+    let locked = results
+        .iter()
+        .filter(|(_, r)| matches!(r, ProfileStatus::Locked { .. }))
+        .count();
+
+    VerifySummary {
+        valid,
+        locked,
+        invalid,
+        profiles: results
+            .iter()
+            .map(|(name, status)| match status {
+                ProfileStatus::Valid {
+                    auth_mode,
+                    identity,
+                    access,
+                } => VerifyProfileRow {
+                    profile: name.clone(),
+                    status: "valid".to_string(),
+                    auth_mode: auth_mode.clone(),
+                    auth_mode_label: auth_mode_label(auth_mode).to_string(),
+                    details: format!("{identity} ({access})"),
+                },
+                ProfileStatus::Locked { auth_mode } => VerifyProfileRow {
+                    profile: name.clone(),
+                    status: "locked".to_string(),
+                    auth_mode: auth_mode.clone(),
+                    auth_mode_label: auth_mode_label(auth_mode).to_string(),
+                    details: "Encrypted profile; decrypt on load".to_string(),
+                },
+                ProfileStatus::Invalid(reason) => VerifyProfileRow {
+                    profile: name.clone(),
+                    status: "invalid".to_string(),
+                    auth_mode: "unknown".to_string(),
+                    auth_mode_label: "Unknown".to_string(),
+                    details: reason.clone(),
+                },
+            })
+            .collect(),
+    }
+}
+
 async fn read_profile_auth_mode(profile_dir: &std::path::Path) -> Option<String> {
     let meta_path = profile_dir.join("profile.json");
     let content = tokio::fs::read_to_string(meta_path).await.ok()?;
     let meta: crate::utils::profile::ProfileMeta = serde_json::from_str(&content).ok()?;
     Some(meta.auth_mode)
+}
+
+#[derive(Debug, Serialize)]
+struct VerifySummary {
+    valid: usize,
+    locked: usize,
+    invalid: usize,
+    profiles: Vec<VerifyProfileRow>,
+}
+
+#[derive(Debug, Serialize)]
+struct VerifyProfileRow {
+    profile: String,
+    status: String,
+    auth_mode: String,
+    auth_mode_label: String,
+    details: String,
 }
 
 fn calculate_days_remaining(iso_date: &str) -> anyhow::Result<i64> {

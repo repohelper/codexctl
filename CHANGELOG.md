@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Made `status`, `usage`, `verify`, `doctor`, and `setup` auth-mode aware so ChatGPT/Codex, API-key, and hybrid profiles describe the capabilities they actually have.
+- Updated `verify` and `usage --all` to treat API-key-only profiles as first-class valid profiles and to report encrypted profiles as locked instead of invalid.
+- Changed `load` to back up only the live `auth.json`, matching the current auth-only switching model.
+- Reduced default logging noise from startup info logs to warnings unless `--verbose` or `RUST_LOG` is set.
+
+### Added
+
+- Added `--json` output to `status`, `usage`, `verify`, and `doctor` for scripting and CI.
+- Added `codexctl run --passphrase` support so encrypted profiles work in one-shot automation flows.
+- Added command-level integration tests covering JSON output for `status`, `usage --all`, and `verify`.
+
 ## [0.9.0] - 2026-04-12
 
 ### Changed

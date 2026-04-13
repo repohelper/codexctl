@@ -2,10 +2,11 @@
 
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use serde::Serialize;
 use serde_json::Value;
 
 /// Usage limits and subscription information extracted from the `JWT` token.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UsageInfo {
     /// Authenticated user email
     pub email: String,

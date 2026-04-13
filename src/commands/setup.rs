@@ -91,7 +91,7 @@ pub async fn execute(config: Config, _quiet: bool) -> Result<()> {
                 crate::commands::delete::execute(config.clone(), name, true, false).await?;
             }
             4 => {
-                crate::commands::status::execute(config.clone(), false).await?;
+                crate::commands::status::execute(config.clone(), false, false).await?;
             }
             _ => break,
         }

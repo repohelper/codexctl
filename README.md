@@ -42,6 +42,7 @@ Use it when you need to:
 - Codex CLI can authenticate with either a ChatGPT account or an API key.
 - `codexctl usage` reads ChatGPT/Codex plan claims from local auth tokens.
 - `codexctl usage --realtime` checks API billing/quota via OpenAI API endpoints.
+- `codexctl status --json`, `usage --json`, `verify --json`, and `doctor --json` provide script-safe structured output.
 - References:
   - Codex CLI auth flow: https://developers.openai.com/codex/cli
   - API vs ChatGPT billing separation: https://help.openai.com/en/articles/8156019
@@ -162,6 +163,9 @@ codexctl save work
 
 # Load encrypted profile
 codexctl load work --passphrase "my-secret"
+
+# Run one command with an encrypted profile, then restore original auth
+codexctl run --profile work --passphrase "my-secret" -- codex --version
 ```
 
 ---
@@ -173,6 +177,9 @@ Inspect usage directly or let the controller pick the best available profile:
 ```bash
 # Show current profile usage details
 codexctl usage
+
+# Emit structured JSON for automation
+codexctl usage --json
 
 # Compare usage across all saved profiles
 codexctl usage --all
@@ -196,6 +203,22 @@ eval "$(codexctl env work)"
 
 # Run one command against a specific profile and restore after
 codexctl run --profile work -- codex --version
+```
+
+`codexctl load` and `codexctl run` only swap the live `auth.json`. Existing local sessions, history, memories, and state stay untouched. The automatic backup created during `load` now captures the live `auth.json` only, matching the actual mutation surface.
+
+---
+
+## Structured Output
+
+For CI, shell pipelines, and editor tooling:
+
+```bash
+codexctl status --json
+codexctl usage --json
+codexctl usage --all --json
+codexctl verify --json
+codexctl doctor --json
 ```
 
 ---

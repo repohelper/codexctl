@@ -7,10 +7,17 @@ use anyhow::{Context as _, Result};
 use chrono::{DateTime, Utc};
 use colored::Colorize as _;
 use prettytable::{Cell, Row, Table, format};
+use serde::Serialize;
 
-pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> Result<()> {
+pub async fn execute(
+    config: Config,
+    all: bool,
+    realtime: bool,
+    json: bool,
+    quiet: bool,
+) -> Result<()> {
     if all {
-        return show_all_profiles_usage(config, quiet).await;
+        return show_all_profiles_usage(config, json, quiet).await;
     }
 
     let codex_dir = config.codex_dir();
@@ -31,8 +38,32 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
     };
     let auth_mode = detect_auth_mode(&auth_json);
 
-    // Extract usage info from ChatGPT/Codex JWT claims when present.
     let usage_info = extract_usage_info(&auth_json).ok();
+    let realtime_result = if realtime && auth_mode_has_api_key(&auth_mode) {
+        Some(fetch_realtime_quota(&auth_json).await)
+    } else {
+        None
+    };
+
+    if json {
+        let payload = UsageCommandJson {
+            auth_mode: auth_mode.clone(),
+            auth_mode_label: auth_mode_label(&auth_mode).to_string(),
+            plan_claims_available: auth_mode_has_chatgpt(&auth_mode) && usage_info.is_some(),
+            api_realtime_available: auth_mode_has_api_key(&auth_mode),
+            realtime_requested: realtime,
+            plan_claims: usage_info.clone(),
+            realtime_quota: realtime_result
+                .as_ref()
+                .and_then(|result| result.as_ref().ok())
+                .cloned(),
+            realtime_error: realtime_result.and_then(|result| result.err().map(|e| e.to_string())),
+        };
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+        return Ok(());
+    }
+
+    // Extract usage info from ChatGPT/Codex JWT claims when present.
     if auth_mode_has_chatgpt(&auth_mode) {
         if let Some(info) = usage_info.as_ref() {
             display_usage_table(info);
@@ -58,7 +89,7 @@ pub async fn execute(config: Config, all: bool, realtime: bool, quiet: bool) -> 
                 );
             }
         } else {
-            match fetch_realtime_quota(&auth_json).await {
+            match realtime_result.expect("realtime result prepared when API key is available") {
                 Ok(quota) => display_realtime_quota(&quota),
                 Err(e) => {
                     if !quiet {
@@ -182,7 +213,7 @@ fn display_realtime_quota(quota: &crate::utils::api::RealTimeQuota) {
 
 /// Show usage information for all profiles
 #[allow(clippy::too_many_lines)]
-async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
+async fn show_all_profiles_usage(config: Config, json: bool, quiet: bool) -> Result<()> {
     let profiles_dir = config.profiles_dir();
     if !profiles_dir.exists() {
         anyhow::bail!("No profiles directory found");
@@ -223,7 +254,9 @@ async fn show_all_profiles_usage(config: Config, quiet: bool) -> Result<()> {
             .then_with(|| a.name.cmp(&b.name))
     });
 
-    if !quiet {
+    if json {
+        println!("{}", serde_json::to_string_pretty(&profiles)?);
+    } else if !quiet {
         println!("\n{}", "📊 Usage Across All Profiles".bold().cyan());
         println!();
 
@@ -455,15 +488,29 @@ fn calculate_days_remaining(iso_date: &str) -> Result<i64> {
     Ok(duration.num_days())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct ProfileUsageRow {
     name: String,
     auth_mode: String,
     identity: String,
     access: String,
     status: String,
+    #[serde(skip_serializing)]
     status_style: String,
+    #[serde(skip_serializing)]
     sort_score: i32,
+}
+
+#[derive(Debug, Serialize)]
+struct UsageCommandJson {
+    auth_mode: String,
+    auth_mode_label: String,
+    plan_claims_available: bool,
+    api_realtime_available: bool,
+    realtime_requested: bool,
+    plan_claims: Option<UsageInfo>,
+    realtime_quota: Option<crate::utils::api::RealTimeQuota>,
+    realtime_error: Option<String>,
 }
 
 async fn read_profile_meta(

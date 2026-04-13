@@ -95,7 +95,11 @@ pub enum Commands {
 
     /// Show current profile status
     #[command(alias = "st", alias = "current")]
-    Status,
+    Status {
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Show ChatGPT/Codex plan claims and API usage context
     #[command(alias = "u")]
@@ -106,11 +110,18 @@ pub enum Commands {
         /// Fetch real-time quota from `OpenAI` API (API billing is separate from ChatGPT/Codex plans)
         #[arg(short, long)]
         realtime: bool,
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
     },
 
     /// Verify all profiles' authentication status
     #[command(alias = "v")]
-    Verify,
+    Verify {
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Create a backup of current profile
     #[command(alias = "b")]
@@ -176,7 +187,11 @@ pub enum Commands {
 
     /// Run health check on profiles
     #[command(alias = "doc")]
-    Doctor,
+    Doctor {
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Generate shell completions
     #[command(alias = "comp")]
@@ -232,10 +247,11 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| if cli.verbose { "debug" } else { "info" }.into()),
+                .unwrap_or_else(|_| if cli.verbose { "debug" } else { "warn" }.into()),
         )
         .with_target(false)
         .with_level(true)
+        .with_writer(std::io::stderr)
         .init();
 
     debug!("Starting codexctl");
@@ -272,14 +288,18 @@ async fn main() -> Result<()> {
         Commands::Delete { name, force } => {
             delete::execute(config, name, force, cli.quiet).await?;
         }
-        Commands::Status => {
-            status::execute(config, cli.quiet).await?;
+        Commands::Status { json } => {
+            status::execute(config, json, cli.quiet).await?;
         }
-        Commands::Usage { all, realtime } => {
-            commands::usage::execute(config, all, realtime, cli.quiet).await?;
+        Commands::Usage {
+            all,
+            realtime,
+            json,
+        } => {
+            commands::usage::execute(config, all, realtime, json, cli.quiet).await?;
         }
-        Commands::Verify => {
-            commands::verify::execute(config, cli.quiet).await?;
+        Commands::Verify { json } => {
+            commands::verify::execute(config, json, cli.quiet).await?;
         }
         Commands::Backup { name } => {
             backup::execute(config, name, cli.quiet)?;
@@ -311,8 +331,8 @@ async fn main() -> Result<()> {
         Commands::History { limit, profile } => {
             commands::history::execute(config, limit, profile, cli.quiet).await?;
         }
-        Commands::Doctor => {
-            commands::doctor::execute(config, cli.quiet).await?;
+        Commands::Doctor { json } => {
+            commands::doctor::execute(config, json, cli.quiet).await?;
         }
         Commands::Completions { shell, print } => {
             let shell_str = match shell {
