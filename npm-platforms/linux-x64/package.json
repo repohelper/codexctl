@@ -1,6 +1,6 @@
 {
   "name": "@codexctl/linux-x64",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "The Linux x86_64 binary for codexctl",
   "repository": {
     "type": "git",

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-13
+
 ### Changed
 
 - Made `status`, `usage`, `verify`, `doctor`, and `setup` auth-mode aware so ChatGPT/Codex, API-key, and hybrid profiles describe the capabilities they actually have.

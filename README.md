@@ -8,7 +8,7 @@
 
 **Prerequisite**: Requires [@openai/codex](https://www.npmjs.com/package/@openai/codex) to be installed first.
 
-**Version**: 0.9.0 | **Author**: [Bhanu Korthiwada](https://github.com/BhanuKorthiwada)
+**Version**: 0.10.0 | **Author**: [Bhanu Korthiwada](https://github.com/BhanuKorthiwada)
 
 🔗 **Website**: [codexctl on GitHub](https://github.com/repohelper/codexctl)  
 📖 **Documentation**: See README for usage
