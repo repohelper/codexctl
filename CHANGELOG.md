@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the unused `aes-gcm` release-candidate dependency and kept profile encryption on the stable `age` stack already used by the codebase.
+- Refreshed the Rust lockfile to current compatible transitive versions.
+- Updated release automation to the current `softprops/action-gh-release@v3` action and aligned the npm audit workflow to Node.js 24.
+
 ## [0.10.0] - 2026-04-13
 
 ### Changed
