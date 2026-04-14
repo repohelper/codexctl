@@ -6,6 +6,7 @@ use anyhow::{Context as _, Result};
 use chrono::Utc;
 use colored::Colorize as _;
 use serde::Serialize;
+use serde_json::json;
 use tokio::io::AsyncWriteExt as _;
 use tokio::process::Command;
 use tokio::time::timeout;
@@ -15,15 +16,16 @@ use crate::utils::auth::detect_auth_mode;
 use crate::utils::command_exit::fail;
 use crate::utils::config::Config;
 use crate::utils::runs::{
-    LatestValidationSummary, RunEvent, RunRecord, RunStatus, agent_stderr_log, agent_stdout_log,
-    append_event, append_log, create_run_id, final_report_file, initialize_run_dir,
-    load_run_record, prompt_file, run_dir, save_run_record, stop_file, summary_file,
-    task_snapshot_file, validation_file,
+    GateStatus, LatestValidationSummary, RepoStateSnapshot, RunEvent, RunPhase, RunRecord,
+    RunStatus, agent_stderr_log, agent_stdout_log, append_event, append_log, create_run_id,
+    final_report_file, initialize_run_dir, load_run_record, prompt_file, review_file, run_dir,
+    save_run_record, stop_file, summary_file, task_snapshot_file, validation_file,
 };
 use crate::utils::task::BetSpec;
 use crate::utils::validate::{ValidationStatus, resolve_validation_cwd, run_shell_checks};
 use crate::utils::validation::ProfileName;
 
+const RUN_BLOCKED_EXIT_CODE: u8 = 20;
 const RUN_BUDGET_EXIT_CODE: u8 = 21;
 const RUN_CANCELLED_EXIT_CODE: u8 = 22;
 const RUN_STATE_EXIT_CODE: u8 = 23;
@@ -42,6 +44,7 @@ pub async fn execute(
     passphrase: Option<String>,
     dry_run: bool,
     json: bool,
+    notify_cmd: Option<String>,
     quiet: bool,
 ) -> Result<()> {
     let current_dir =
@@ -63,6 +66,7 @@ pub async fn execute(
             passphrase,
             dry_run,
             json,
+            notify_cmd,
             quiet,
         )
         .await;
@@ -96,6 +100,16 @@ pub async fn execute(
                 timed_out: 0,
                 errors: 0,
             },
+            latest_review: LatestValidationSummary {
+                status: None,
+                passed: 0,
+                failed: 0,
+                timed_out: 0,
+                errors: 0,
+            },
+            implementation_status: GateStatus::Pending,
+            review_status: GateStatus::Pending,
+            phase: RunPhase::Queued,
         };
         if json {
             println!("{}", serde_json::to_string_pretty(&payload)?);
@@ -119,6 +133,7 @@ pub async fn execute(
         schema_version: "runs/v1".to_string(),
         run_id: run_id.clone(),
         status: RunStatus::Queued,
+        phase: RunPhase::Queued,
         stop_reason: None,
         task_name: bet_spec.name.clone(),
         task_path: task_path.display().to_string(),
@@ -129,6 +144,16 @@ pub async fn execute(
         started_at: Utc::now(),
         updated_at: Utc::now(),
         finished_at: None,
+        implementation_status: GateStatus::Pending,
+        review_status: GateStatus::Pending,
+        repo_state: RepoStateSnapshot::from(&repo_state),
+        latest_review: LatestValidationSummary {
+            status: None,
+            passed: 0,
+            failed: 0,
+            timed_out: 0,
+            errors: 0,
+        },
         latest_validation: LatestValidationSummary {
             status: None,
             passed: 0,
@@ -161,6 +186,7 @@ pub async fn execute(
         passphrase,
         repo_state,
         json,
+        notify_cmd,
         quiet,
     )
     .await
@@ -178,6 +204,7 @@ async fn resume_run(
     passphrase: Option<String>,
     dry_run: bool,
     json: bool,
+    notify_cmd: Option<String>,
     quiet: bool,
 ) -> Result<()> {
     if dry_run {
@@ -219,6 +246,7 @@ async fn resume_run(
     let task_snapshot = task_snapshot_file(&run_root);
     let bet_spec = BetSpec::load_from_path(&task_snapshot).await?;
     let repo_state = inspect_repo_state(&repo_root).await;
+    record.repo_state = RepoStateSnapshot::from(&repo_state);
 
     if let Some(profile) = profile {
         record.profile = Some(profile);
@@ -236,6 +264,7 @@ async fn resume_run(
         passphrase,
         repo_state,
         json,
+        notify_cmd,
         quiet,
     )
     .await
@@ -254,6 +283,7 @@ async fn execute_loop(
     passphrase: Option<String>,
     repo_state: RepoState,
     json: bool,
+    notify_cmd: Option<String>,
     quiet: bool,
 ) -> Result<()> {
     let max_iterations = max_iterations_override
@@ -278,10 +308,64 @@ async fn execute_loop(
     let started = std::time::Instant::now();
     let mut consecutive_failures = 0u32;
     let mut previous_summary: Option<String> = None;
+    let is_initial_start = record.iteration_count == 0 && matches!(record.phase, RunPhase::Queued);
+
+    ensure_resume_integrity(run_dir, record)?;
+    record.repo_state = RepoStateSnapshot::from(&repo_state);
+
+    if is_initial_start && repo_state.is_dirty {
+        record.status = RunStatus::Blocked;
+        record.phase = RunPhase::Finalized;
+        record.stop_reason = Some("dirty_working_tree".to_string());
+        record.finished_at = Some(Utc::now());
+        record.updated_at = Utc::now();
+        save_run_record(run_dir, record)?;
+        append_event(
+            run_dir,
+            &RunEvent {
+                timestamp: Utc::now(),
+                event_type: "blocked".to_string(),
+                iteration: None,
+                message: "Refusing to start unattended work from a dirty working tree".to_string(),
+                payload: None,
+            },
+        )?;
+        tokio::fs::write(
+            final_report_file(run_dir),
+            build_final_report(record, bet_spec, None),
+        )
+        .await
+        .with_context(|| format!("Failed to write final report for run {}", record.run_id))?;
+        return finish_run(
+            run_dir,
+            record,
+            json,
+            quiet,
+            notify_cmd.as_deref(),
+            RUN_BLOCKED_EXIT_CODE,
+        )
+        .await;
+    }
 
     record.status = RunStatus::Running;
+    record.phase = RunPhase::Queued;
     record.updated_at = Utc::now();
     save_run_record(run_dir, record)?;
+    emit_repo_policy_events(run_dir, record, &repo_state)?;
+    if is_initial_start {
+        notify_hook(notify_cmd.as_deref(), "started", run_dir, record).await?;
+    } else {
+        append_event(
+            run_dir,
+            &RunEvent {
+                timestamp: Utc::now(),
+                event_type: "resumed".to_string(),
+                iteration: Some(record.iteration_count),
+                message: "Run resumed".to_string(),
+                payload: None,
+            },
+        )?;
+    }
 
     if !json && !quiet {
         print_repo_warnings(&repo_state);
@@ -292,33 +376,68 @@ async fn execute_loop(
 
     loop {
         if stop_file(run_dir).exists() {
-            record.status = RunStatus::Cancelled;
-            record.stop_reason = Some("stop_file_detected".to_string());
-            record.finished_at = Some(Utc::now());
-            record.updated_at = Utc::now();
-            save_run_record(run_dir, record)?;
-            return finish_run(run_dir, record, json, quiet, RUN_CANCELLED_EXIT_CODE);
+            return cancel_run(
+                run_dir,
+                record,
+                bet_spec,
+                "stop_requested_before_iteration",
+                notify_cmd.as_deref(),
+                json,
+                quiet,
+            )
+            .await;
         }
 
         if record.iteration_count >= max_iterations {
             record.status = RunStatus::BudgetExhausted;
+            record.phase = RunPhase::Finalized;
             record.stop_reason = Some("max_iterations_reached".to_string());
             record.finished_at = Some(Utc::now());
             record.updated_at = Utc::now();
             save_run_record(run_dir, record)?;
-            return finish_run(run_dir, record, json, quiet, RUN_BUDGET_EXIT_CODE);
+            tokio::fs::write(
+                final_report_file(run_dir),
+                build_final_report(record, bet_spec, previous_summary.as_deref()),
+            )
+            .await
+            .with_context(|| format!("Failed to write final report for run {}", record.run_id))?;
+            return finish_run(
+                run_dir,
+                record,
+                json,
+                quiet,
+                notify_cmd.as_deref(),
+                RUN_BUDGET_EXIT_CODE,
+            )
+            .await;
         }
 
         if started.elapsed() > Duration::from_secs(u64::from(max_runtime_minutes) * 60) {
             record.status = RunStatus::BudgetExhausted;
+            record.phase = RunPhase::Finalized;
             record.stop_reason = Some("max_runtime_exceeded".to_string());
             record.finished_at = Some(Utc::now());
             record.updated_at = Utc::now();
             save_run_record(run_dir, record)?;
-            return finish_run(run_dir, record, json, quiet, RUN_BUDGET_EXIT_CODE);
+            tokio::fs::write(
+                final_report_file(run_dir),
+                build_final_report(record, bet_spec, previous_summary.as_deref()),
+            )
+            .await
+            .with_context(|| format!("Failed to write final report for run {}", record.run_id))?;
+            return finish_run(
+                run_dir,
+                record,
+                json,
+                quiet,
+                notify_cmd.as_deref(),
+                RUN_BUDGET_EXIT_CODE,
+            )
+            .await;
         }
 
         record.iteration_count += 1;
+        record.phase = RunPhase::Agent;
         record.updated_at = Utc::now();
         save_run_record(run_dir, record)?;
 
@@ -360,6 +479,7 @@ async fn execute_loop(
             Ok(output) => output,
             Err(error) => {
                 record.status = RunStatus::Failed;
+                record.phase = RunPhase::Finalized;
                 record.stop_reason = Some("agent_invocation_failed".to_string());
                 record.finished_at = Some(Utc::now());
                 record.updated_at = Utc::now();
@@ -374,10 +494,29 @@ async fn execute_loop(
                         payload: None,
                     },
                 )?;
-                return fail(
+                tokio::fs::write(
+                    final_report_file(run_dir),
+                    build_final_report(record, bet_spec, previous_summary.as_deref()),
+                )
+                .await
+                .with_context(|| {
+                    format!("Failed to write final report for run {}", record.run_id)
+                })?;
+                return finish_run(
+                    run_dir,
+                    record,
+                    json,
+                    quiet,
+                    notify_cmd.as_deref(),
                     RUN_AGENT_EXIT_CODE,
-                    format!("Agent invocation failed: {error}"),
-                );
+                )
+                .await
+                .or_else(|_| {
+                    fail(
+                        RUN_AGENT_EXIT_CODE,
+                        format!("Agent invocation failed: {error}"),
+                    )
+                });
             }
         };
 
@@ -394,9 +533,35 @@ async fn execute_loop(
                 )
             })?;
 
+        if stop_file(run_dir).exists() {
+            return cancel_run(
+                run_dir,
+                record,
+                bet_spec,
+                "stop_requested_before_validation",
+                notify_cmd.as_deref(),
+                json,
+                quiet,
+            )
+            .await;
+        }
+
+        record.phase = RunPhase::AcceptanceValidation;
+        record.updated_at = Utc::now();
+        save_run_record(run_dir, record)?;
+
         let validation_cwd = resolve_validation_cwd(None, Some(current_dir))?;
-        let validation =
-            run_shell_checks(&bet_spec.acceptance_checks, &validation_cwd, 300, false).await?;
+        let validation_timeout = remaining_validation_timeout_seconds(
+            started.elapsed(),
+            Duration::from_secs(u64::from(max_runtime_minutes) * 60),
+        );
+        let validation = run_shell_checks(
+            &bet_spec.acceptance_checks,
+            &validation_cwd,
+            validation_timeout,
+            false,
+        )
+        .await?;
         tokio::fs::write(
             validation_file(run_dir, record.iteration_count),
             serde_json::to_vec_pretty(&validation)
@@ -417,35 +582,132 @@ async fn execute_loop(
             timed_out: validation.summary.timed_out,
             errors: validation.summary.errors,
         };
+        record.implementation_status = gate_status_from_validation(&validation.status);
         record.updated_at = Utc::now();
         save_run_record(run_dir, record)?;
 
         match validation.status {
             ValidationStatus::Passed => {
-                record.status = RunStatus::Succeeded;
-                record.stop_reason = Some("acceptance_checks_passed".to_string());
-                record.finished_at = Some(Utc::now());
+                if bet_spec.review_checks.is_empty() {
+                    record.review_status = GateStatus::Skipped;
+                    record.status = RunStatus::Succeeded;
+                    record.phase = RunPhase::Finalized;
+                    record.stop_reason = Some("acceptance_checks_passed".to_string());
+                    record.finished_at = Some(Utc::now());
+                    record.updated_at = Utc::now();
+                    save_run_record(run_dir, record)?;
+                    tokio::fs::write(
+                        final_report_file(run_dir),
+                        build_final_report(record, bet_spec, Some(&summary)),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Failed to write final report for run {}", record.run_id)
+                    })?;
+                    append_event(
+                        run_dir,
+                        &RunEvent {
+                            timestamp: Utc::now(),
+                            event_type: "succeeded".to_string(),
+                            iteration: Some(record.iteration_count),
+                            message: "Acceptance checks passed".to_string(),
+                            payload: None,
+                        },
+                    )?;
+                    return finish_run(run_dir, record, json, quiet, notify_cmd.as_deref(), 0)
+                        .await;
+                }
+
+                if stop_file(run_dir).exists() {
+                    return cancel_run(
+                        run_dir,
+                        record,
+                        bet_spec,
+                        "stop_requested_before_review",
+                        notify_cmd.as_deref(),
+                        json,
+                        quiet,
+                    )
+                    .await;
+                }
+
+                record.phase = RunPhase::Review;
                 record.updated_at = Utc::now();
                 save_run_record(run_dir, record)?;
+
+                let review = run_shell_checks(
+                    &bet_spec.review_checks,
+                    &validation_cwd,
+                    validation_timeout,
+                    false,
+                )
+                .await?;
                 tokio::fs::write(
-                    final_report_file(run_dir),
-                    build_final_report(record, bet_spec, Some(&summary)),
+                    review_file(run_dir, record.iteration_count),
+                    serde_json::to_vec_pretty(&review)
+                        .context("Failed to serialize review output")?,
                 )
                 .await
                 .with_context(|| {
-                    format!("Failed to write final report for run {}", record.run_id)
+                    format!("Failed to write review output for run {}", record.run_id)
                 })?;
-                append_event(
-                    run_dir,
-                    &RunEvent {
-                        timestamp: Utc::now(),
-                        event_type: "succeeded".to_string(),
-                        iteration: Some(record.iteration_count),
-                        message: "Acceptance checks passed".to_string(),
-                        payload: None,
-                    },
-                )?;
-                return finish_run(run_dir, record, json, quiet, 0);
+                record.latest_review = LatestValidationSummary {
+                    status: Some(status_label(&review.status).to_string()),
+                    passed: review.summary.passed,
+                    failed: review.summary.failed,
+                    timed_out: review.summary.timed_out,
+                    errors: review.summary.errors,
+                };
+                record.review_status = gate_status_from_validation(&review.status);
+                record.updated_at = Utc::now();
+                save_run_record(run_dir, record)?;
+
+                match review.status {
+                    ValidationStatus::Passed => {
+                        record.status = RunStatus::Succeeded;
+                        record.phase = RunPhase::Finalized;
+                        record.stop_reason = Some("review_checks_passed".to_string());
+                        record.finished_at = Some(Utc::now());
+                        record.updated_at = Utc::now();
+                        save_run_record(run_dir, record)?;
+                        tokio::fs::write(
+                            final_report_file(run_dir),
+                            build_final_report(record, bet_spec, Some(&summary)),
+                        )
+                        .await
+                        .with_context(|| {
+                            format!("Failed to write final report for run {}", record.run_id)
+                        })?;
+                        append_event(
+                            run_dir,
+                            &RunEvent {
+                                timestamp: Utc::now(),
+                                event_type: "succeeded".to_string(),
+                                iteration: Some(record.iteration_count),
+                                message: "Acceptance and review checks passed".to_string(),
+                                payload: None,
+                            },
+                        )?;
+                        return finish_run(run_dir, record, json, quiet, notify_cmd.as_deref(), 0)
+                            .await;
+                    }
+                    ValidationStatus::Failed
+                    | ValidationStatus::TimedOut
+                    | ValidationStatus::Error => {
+                        previous_summary = Some(build_validation_feedback(&review, &summary));
+                        return block_run(
+                            run_dir,
+                            record,
+                            bet_spec,
+                            "review_checks_failed",
+                            previous_summary.as_deref(),
+                            notify_cmd.as_deref(),
+                            json,
+                            quiet,
+                        )
+                        .await;
+                    }
+                }
             }
             ValidationStatus::Failed | ValidationStatus::TimedOut | ValidationStatus::Error => {
                 consecutive_failures += 1;
@@ -467,6 +729,7 @@ async fn execute_loop(
 
                 if consecutive_failures >= max_consecutive_failures {
                     record.status = RunStatus::BudgetExhausted;
+                    record.phase = RunPhase::Finalized;
                     record.stop_reason = Some("max_consecutive_failures_reached".to_string());
                     record.finished_at = Some(Utc::now());
                     record.updated_at = Utc::now();
@@ -479,7 +742,15 @@ async fn execute_loop(
                     .with_context(|| {
                         format!("Failed to write final report for run {}", record.run_id)
                     })?;
-                    return finish_run(run_dir, record, json, quiet, RUN_BUDGET_EXIT_CODE);
+                    return finish_run(
+                        run_dir,
+                        record,
+                        json,
+                        quiet,
+                        notify_cmd.as_deref(),
+                        RUN_BUDGET_EXIT_CODE,
+                    )
+                    .await;
                 }
             }
         }
@@ -733,6 +1004,111 @@ fn build_validation_feedback(
     feedback
 }
 
+fn gate_status_from_validation(status: &ValidationStatus) -> GateStatus {
+    match status {
+        ValidationStatus::Passed => GateStatus::Passed,
+        ValidationStatus::Failed => GateStatus::Failed,
+        ValidationStatus::TimedOut => GateStatus::TimedOut,
+        ValidationStatus::Error => GateStatus::Error,
+    }
+}
+
+fn remaining_validation_timeout_seconds(elapsed: Duration, max_runtime: Duration) -> u64 {
+    let remaining = max_runtime.saturating_sub(elapsed).as_secs();
+    remaining.clamp(1, 300)
+}
+
+fn ensure_resume_integrity(run_dir: &Path, record: &RunRecord) -> Result<()> {
+    if !task_snapshot_file(run_dir).exists() {
+        return fail(
+            RUN_STATE_EXIT_CODE,
+            format!(
+                "Run '{}' cannot be resumed because task.snapshot.yaml is missing",
+                record.run_id
+            ),
+        );
+    }
+
+    if record.iteration_count == 0 {
+        return Ok(());
+    }
+
+    if !prompt_file(run_dir, record.iteration_count).exists() {
+        return fail(
+            RUN_BLOCKED_EXIT_CODE,
+            format!(
+                "Run '{}' is blocked because iteration {} prompt is missing",
+                record.run_id, record.iteration_count
+            ),
+        );
+    }
+
+    if matches!(
+        record.phase,
+        RunPhase::AcceptanceValidation | RunPhase::Review | RunPhase::Finalized
+    ) && !summary_file(run_dir, record.iteration_count).exists()
+    {
+        return fail(
+            RUN_BLOCKED_EXIT_CODE,
+            format!(
+                "Run '{}' is blocked because iteration {} summary is missing",
+                record.run_id, record.iteration_count
+            ),
+        );
+    }
+
+    if matches!(record.phase, RunPhase::Review | RunPhase::Finalized)
+        && !validation_file(run_dir, record.iteration_count).exists()
+    {
+        return fail(
+            RUN_BLOCKED_EXIT_CODE,
+            format!(
+                "Run '{}' is blocked because iteration {} validation is missing",
+                record.run_id, record.iteration_count
+            ),
+        );
+    }
+
+    Ok(())
+}
+
+fn emit_repo_policy_events(
+    run_dir: &Path,
+    record: &RunRecord,
+    repo_state: &RepoState,
+) -> Result<()> {
+    if !repo_state.is_git_repo {
+        append_event(
+            run_dir,
+            &RunEvent {
+                timestamp: Utc::now(),
+                event_type: "repo_warning".to_string(),
+                iteration: None,
+                message: format!(
+                    "Run '{}' is executing outside a git repository",
+                    record.run_id
+                ),
+                payload: Some(json!({"policy": "non_git_repo"})),
+            },
+        )?;
+    }
+
+    if repo_state.is_detached_head {
+        append_event(
+            run_dir,
+            &RunEvent {
+                timestamp: Utc::now(),
+                event_type: "repo_warning".to_string(),
+                iteration: None,
+                message: format!("Run '{}' is executing from detached HEAD", record.run_id),
+                payload: Some(json!({"policy": "detached_head"})),
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
 fn build_final_report(
     record: &RunRecord,
     bet_spec: &BetSpec,
@@ -741,10 +1117,25 @@ fn build_final_report(
     let mut report = String::new();
     report.push_str(&format!("# Final Report\n\nRun ID: {}\n", record.run_id));
     report.push_str(&format!("Bet: {}\n", record.task_name));
-    report.push_str(&format!("Status: {:?}\n", record.status));
+    report.push_str(&format!("Status: {}\n", run_status_text(&record.status)));
+    report.push_str(&format!("Phase: {}\n", run_phase_text(&record.phase)));
+    report.push_str(&format!(
+        "Implementation gate: {}\n",
+        gate_status_text(&record.implementation_status)
+    ));
+    report.push_str(&format!(
+        "Review gate: {}\n",
+        gate_status_text(&record.review_status)
+    ));
     report.push_str(&format!(
         "Stop reason: {}\n",
         record.stop_reason.as_deref().unwrap_or("none")
+    ));
+    report.push_str(&format!(
+        "Repo state: git={}, dirty={}, detached_head={}\n",
+        record.repo_state.is_git_repo,
+        record.repo_state.is_dirty,
+        record.repo_state.is_detached_head
     ));
     report.push_str(&format!("Iterations: {}\n\n", record.iteration_count));
     report.push_str("Success signal:\n");
@@ -758,6 +1149,92 @@ fn build_final_report(
     report
 }
 
+async fn cancel_run(
+    run_dir: &Path,
+    record: &mut RunRecord,
+    bet_spec: &BetSpec,
+    stop_reason: &str,
+    notify_cmd: Option<&str>,
+    json: bool,
+    quiet: bool,
+) -> Result<()> {
+    record.status = RunStatus::Cancelled;
+    record.phase = RunPhase::Finalized;
+    record.stop_reason = Some(stop_reason.to_string());
+    record.finished_at = Some(Utc::now());
+    record.updated_at = Utc::now();
+    save_run_record(run_dir, record)?;
+    append_event(
+        run_dir,
+        &RunEvent {
+            timestamp: Utc::now(),
+            event_type: "cancelled".to_string(),
+            iteration: Some(record.iteration_count),
+            message: format!("Run cancelled: {stop_reason}"),
+            payload: None,
+        },
+    )?;
+    tokio::fs::write(
+        final_report_file(run_dir),
+        build_final_report(record, bet_spec, None),
+    )
+    .await
+    .with_context(|| format!("Failed to write final report for run {}", record.run_id))?;
+    finish_run(
+        run_dir,
+        record,
+        json,
+        quiet,
+        notify_cmd,
+        RUN_CANCELLED_EXIT_CODE,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn block_run(
+    run_dir: &Path,
+    record: &mut RunRecord,
+    bet_spec: &BetSpec,
+    stop_reason: &str,
+    last_summary: Option<&str>,
+    notify_cmd: Option<&str>,
+    json: bool,
+    quiet: bool,
+) -> Result<()> {
+    record.status = RunStatus::Blocked;
+    record.phase = RunPhase::Finalized;
+    record.stop_reason = Some(stop_reason.to_string());
+    record.finished_at = Some(Utc::now());
+    record.updated_at = Utc::now();
+    save_run_record(run_dir, record)?;
+    append_event(
+        run_dir,
+        &RunEvent {
+            timestamp: Utc::now(),
+            event_type: "blocked".to_string(),
+            iteration: Some(record.iteration_count),
+            message: format!("Run blocked: {stop_reason}"),
+            payload: None,
+        },
+    )?;
+    tokio::fs::write(
+        final_report_file(run_dir),
+        build_final_report(record, bet_spec, last_summary),
+    )
+    .await
+    .with_context(|| format!("Failed to write final report for run {}", record.run_id))?;
+    finish_run(
+        run_dir,
+        record,
+        json,
+        quiet,
+        notify_cmd,
+        RUN_BLOCKED_EXIT_CODE,
+    )
+    .await
+}
+
 fn status_label(status: &ValidationStatus) -> &'static str {
     match status {
         ValidationStatus::Passed => "passed",
@@ -767,13 +1244,18 @@ fn status_label(status: &ValidationStatus) -> &'static str {
     }
 }
 
-fn finish_run(
+async fn finish_run(
     run_dir: &Path,
     record: &RunRecord,
     json: bool,
     quiet: bool,
+    notify_cmd: Option<&str>,
     exit_code: u8,
 ) -> Result<()> {
+    if let Some(event_name) = terminal_event_name(&record.status) {
+        notify_hook(notify_cmd, event_name, run_dir, record).await?;
+    }
+
     let payload = RunLoopJson {
         schema_version: "run_loop/v1".to_string(),
         command: "run-loop".to_string(),
@@ -792,7 +1274,11 @@ fn finish_run(
         started_at: record.started_at,
         updated_at: record.updated_at,
         finished_at: record.finished_at,
+        implementation_status: record.implementation_status.clone(),
+        review_status: record.review_status.clone(),
+        phase: record.phase.clone(),
         latest_validation: record.latest_validation.clone(),
+        latest_review: record.latest_review.clone(),
     };
 
     if json {
@@ -801,6 +1287,12 @@ fn finish_run(
         println!("\n{}", "Run Result".bold().cyan());
         println!("  Run ID: {}", record.run_id.cyan());
         println!("  Status: {}", run_status_label(&record.status));
+        println!("  Phase: {}", run_phase_label(&record.phase));
+        println!(
+            "  Gates: impl={}, review={}",
+            gate_status_label(&record.implementation_status),
+            gate_status_label(&record.review_status)
+        );
         println!("  Stop reason: {}", payload.stop_reason);
         println!("  Iterations: {}", record.iteration_count);
         println!("  Report: {}", final_report_file(run_dir).display());
@@ -816,6 +1308,94 @@ fn finish_run(
     }
 }
 
+async fn notify_hook(
+    notify_cmd: Option<&str>,
+    event: &str,
+    run_dir: &Path,
+    record: &RunRecord,
+) -> Result<()> {
+    let Some(notify_cmd) = notify_cmd else {
+        return Ok(());
+    };
+
+    let payload = serde_json::to_vec(&json!({
+        "schema_version": "notify/v1",
+        "event": event,
+        "run_id": record.run_id,
+        "task_name": record.task_name,
+        "status": run_status_text(&record.status),
+        "phase": run_phase_text(&record.phase),
+        "stop_reason": record.stop_reason,
+        "iteration_count": record.iteration_count,
+        "profile": record.profile,
+        "auth_mode": record.auth_mode,
+        "implementation_status": gate_status_text(&record.implementation_status),
+        "review_status": gate_status_text(&record.review_status),
+        "repo_root": record.repo_root,
+        "timestamp": Utc::now(),
+    }))
+    .context("Failed to serialize notify payload")?;
+
+    let mut command = shell_command_for(notify_cmd);
+    command
+        .current_dir(&record.repo_root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    let result = async {
+        let mut child = command
+            .spawn()
+            .with_context(|| format!("Failed to spawn notify command: {notify_cmd}"))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(&payload)
+                .await
+                .context("Failed to send notify payload")?;
+        }
+        let status = child
+            .wait()
+            .await
+            .with_context(|| format!("Failed to wait for notify command: {notify_cmd}"))?;
+        if !status.success() {
+            anyhow::bail!("Notify command exited with code {:?}", status.code());
+        }
+        Ok(())
+    }
+    .await;
+
+    if let Err(error) = result {
+        append_event(
+            run_dir,
+            &RunEvent {
+                timestamp: Utc::now(),
+                event_type: "notify_failed".to_string(),
+                iteration: Some(record.iteration_count),
+                message: error.to_string(),
+                payload: Some(json!({"event": event, "notify_cmd": notify_cmd})),
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
+fn shell_command_for(command: &str) -> Command {
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C").arg(command);
+        cmd
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut cmd = Command::new("bash");
+        cmd.arg("-lc").arg(command);
+        cmd
+    }
+}
+
 fn run_status_text(status: &RunStatus) -> &'static str {
     match status {
         RunStatus::Queued => "queued",
@@ -828,6 +1408,16 @@ fn run_status_text(status: &RunStatus) -> &'static str {
     }
 }
 
+fn terminal_event_name(status: &RunStatus) -> Option<&'static str> {
+    match status {
+        RunStatus::Succeeded => Some("succeeded"),
+        RunStatus::Failed | RunStatus::BudgetExhausted => Some("failed"),
+        RunStatus::Blocked => Some("blocked"),
+        RunStatus::Cancelled => Some("cancelled"),
+        RunStatus::Queued | RunStatus::Running => None,
+    }
+}
+
 fn run_status_label(status: &RunStatus) -> colored::ColoredString {
     match status {
         RunStatus::Queued => run_status_text(status).yellow(),
@@ -837,6 +1427,48 @@ fn run_status_label(status: &RunStatus) -> colored::ColoredString {
         RunStatus::Blocked => run_status_text(status).yellow(),
         RunStatus::Cancelled => run_status_text(status).yellow(),
         RunStatus::BudgetExhausted => run_status_text(status).yellow(),
+    }
+}
+
+fn run_phase_text(phase: &RunPhase) -> &'static str {
+    match phase {
+        RunPhase::Queued => "queued",
+        RunPhase::Agent => "agent",
+        RunPhase::AcceptanceValidation => "acceptance_validation",
+        RunPhase::Review => "review",
+        RunPhase::Finalized => "finalized",
+    }
+}
+
+fn run_phase_label(phase: &RunPhase) -> colored::ColoredString {
+    match phase {
+        RunPhase::Queued => run_phase_text(phase).yellow(),
+        RunPhase::Agent => run_phase_text(phase).cyan(),
+        RunPhase::AcceptanceValidation => run_phase_text(phase).cyan(),
+        RunPhase::Review => run_phase_text(phase).cyan(),
+        RunPhase::Finalized => run_phase_text(phase).green(),
+    }
+}
+
+fn gate_status_text(status: &GateStatus) -> &'static str {
+    match status {
+        GateStatus::Pending => "pending",
+        GateStatus::Passed => "passed",
+        GateStatus::Failed => "failed",
+        GateStatus::TimedOut => "timed_out",
+        GateStatus::Error => "error",
+        GateStatus::Skipped => "skipped",
+    }
+}
+
+fn gate_status_label(status: &GateStatus) -> colored::ColoredString {
+    match status {
+        GateStatus::Pending => gate_status_text(status).yellow(),
+        GateStatus::Passed => gate_status_text(status).green(),
+        GateStatus::Failed => gate_status_text(status).red(),
+        GateStatus::TimedOut => gate_status_text(status).yellow(),
+        GateStatus::Error => gate_status_text(status).yellow(),
+        GateStatus::Skipped => gate_status_text(status).cyan(),
     }
 }
 
@@ -856,7 +1488,11 @@ struct RunLoopJson {
     started_at: chrono::DateTime<Utc>,
     updated_at: chrono::DateTime<Utc>,
     finished_at: Option<chrono::DateTime<Utc>>,
+    implementation_status: GateStatus,
+    review_status: GateStatus,
+    phase: RunPhase,
     latest_validation: LatestValidationSummary,
+    latest_review: LatestValidationSummary,
 }
 
 #[derive(Debug, Clone)]
@@ -864,6 +1500,16 @@ struct RepoState {
     is_git_repo: bool,
     is_dirty: bool,
     is_detached_head: bool,
+}
+
+impl From<&RepoState> for RepoStateSnapshot {
+    fn from(value: &RepoState) -> Self {
+        Self {
+            is_git_repo: value.is_git_repo,
+            is_dirty: value.is_dirty,
+            is_detached_head: value.is_detached_head,
+        }
+    }
 }
 
 async fn inspect_repo_state(repo_root: &Path) -> RepoState {

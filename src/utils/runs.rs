@@ -10,6 +10,16 @@ use crate::utils::files::write_bytes_preserve_permissions;
 
 const RUN_STATE_EXIT_CODE: u8 = 23;
 
+fn empty_validation_summary() -> LatestValidationSummary {
+    LatestValidationSummary {
+        status: None,
+        passed: 0,
+        failed: 0,
+        timed_out: 0,
+        errors: 0,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RunStatus {
@@ -20,6 +30,36 @@ pub enum RunStatus {
     Blocked,
     Cancelled,
     BudgetExhausted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RunPhase {
+    #[default]
+    Queued,
+    Agent,
+    AcceptanceValidation,
+    Review,
+    Finalized,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum GateStatus {
+    #[default]
+    Pending,
+    Passed,
+    Failed,
+    TimedOut,
+    Error,
+    Skipped,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RepoStateSnapshot {
+    pub is_git_repo: bool,
+    pub is_dirty: bool,
+    pub is_detached_head: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +76,8 @@ pub struct RunRecord {
     pub schema_version: String,
     pub run_id: String,
     pub status: RunStatus,
+    #[serde(default)]
+    pub phase: RunPhase,
     pub stop_reason: Option<String>,
     pub task_name: String,
     pub task_path: String,
@@ -46,6 +88,14 @@ pub struct RunRecord {
     pub started_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub finished_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub implementation_status: GateStatus,
+    #[serde(default)]
+    pub review_status: GateStatus,
+    #[serde(default)]
+    pub repo_state: RepoStateSnapshot,
+    #[serde(default = "empty_validation_summary")]
+    pub latest_review: LatestValidationSummary,
     pub latest_validation: LatestValidationSummary,
 }
 
@@ -93,6 +143,10 @@ pub fn summary_file(run_dir: &Path, iteration: u32) -> PathBuf {
 
 pub fn validation_file(run_dir: &Path, iteration: u32) -> PathBuf {
     iterations_dir(run_dir).join(format!("{iteration:03}.validation.json"))
+}
+
+pub fn review_file(run_dir: &Path, iteration: u32) -> PathBuf {
+    iterations_dir(run_dir).join(format!("{iteration:03}.review.json"))
 }
 
 pub fn task_snapshot_file(run_dir: &Path) -> PathBuf {
@@ -258,6 +312,7 @@ mod tests {
             schema_version: "runs/v1".to_string(),
             run_id: "run-1".to_string(),
             status: RunStatus::Queued,
+            phase: RunPhase::Queued,
             stop_reason: None,
             task_name: "test".to_string(),
             task_path: "task.yaml".to_string(),
@@ -268,6 +323,10 @@ mod tests {
             started_at: Utc::now(),
             updated_at: Utc::now(),
             finished_at: None,
+            implementation_status: GateStatus::Pending,
+            review_status: GateStatus::Pending,
+            repo_state: RepoStateSnapshot::default(),
+            latest_review: empty_validation_summary(),
             latest_validation: LatestValidationSummary {
                 status: None,
                 passed: 0,

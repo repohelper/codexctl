@@ -44,6 +44,12 @@ pub async fn execute(
             println!("  Run ID: {}", record.run_id.cyan());
             println!("  Task: {}", record.task_name.green());
             println!("  Status: {}", run_status_text(&record.status));
+            println!("  Phase: {}", run_phase_text(&record.phase));
+            println!(
+                "  Gates: impl={}, review={}",
+                gate_status_text(&record.implementation_status),
+                gate_status_text(&record.review_status)
+            );
             println!(
                 "  Stop reason: {}",
                 record.stop_reason.as_deref().unwrap_or("none")
@@ -90,10 +96,12 @@ pub async fn execute(
         println!("{}", "Runs".bold().cyan());
         for record in records {
             println!(
-                "  {} {} {} ({})",
+                "  {} {} {} [{} / {}] ({})",
                 record.run_id.cyan(),
                 record.task_name.green(),
                 run_status_text(&record.status).yellow(),
+                gate_status_text(&record.implementation_status),
+                gate_status_text(&record.review_status),
                 record.iteration_count
             );
         }
@@ -125,5 +133,26 @@ fn run_status_text(status: &crate::utils::runs::RunStatus) -> &'static str {
         crate::utils::runs::RunStatus::Blocked => "blocked",
         crate::utils::runs::RunStatus::Cancelled => "cancelled",
         crate::utils::runs::RunStatus::BudgetExhausted => "budget_exhausted",
+    }
+}
+
+fn run_phase_text(phase: &crate::utils::runs::RunPhase) -> &'static str {
+    match phase {
+        crate::utils::runs::RunPhase::Queued => "queued",
+        crate::utils::runs::RunPhase::Agent => "agent",
+        crate::utils::runs::RunPhase::AcceptanceValidation => "acceptance_validation",
+        crate::utils::runs::RunPhase::Review => "review",
+        crate::utils::runs::RunPhase::Finalized => "finalized",
+    }
+}
+
+fn gate_status_text(status: &crate::utils::runs::GateStatus) -> &'static str {
+    match status {
+        crate::utils::runs::GateStatus::Pending => "pending",
+        crate::utils::runs::GateStatus::Passed => "passed",
+        crate::utils::runs::GateStatus::Failed => "failed",
+        crate::utils::runs::GateStatus::TimedOut => "timed_out",
+        crate::utils::runs::GateStatus::Error => "error",
+        crate::utils::runs::GateStatus::Skipped => "skipped",
     }
 }

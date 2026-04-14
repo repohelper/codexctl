@@ -185,6 +185,9 @@ pub enum Commands {
         /// Emit structured JSON output
         #[arg(long)]
         json: bool,
+        /// Shell command to notify on major run events
+        #[arg(long)]
+        notify_cmd: Option<String>,
     },
 
     /// Inspect persisted run records for shaped bet executions
@@ -428,6 +431,7 @@ async fn try_main() -> Result<()> {
             passphrase,
             dry_run,
             json,
+            notify_cmd,
         } => {
             run_loop::execute(
                 config,
@@ -440,6 +444,7 @@ async fn try_main() -> Result<()> {
                 passphrase,
                 dry_run,
                 json,
+                notify_cmd,
                 cli.quiet,
             )
             .await?;
