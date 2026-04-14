@@ -439,10 +439,12 @@ agent:
     assert_eq!(payload["status"], "succeeded");
     assert_eq!(payload["implementation_status"], "passed");
     assert_eq!(payload["review_status"], "passed");
-    assert!(fixture
-        .last_run_report()
-        .unwrap()
-        .contains("Review gate: passed"));
+    assert!(
+        fixture
+            .last_run_report()
+            .unwrap()
+            .contains("Review gate: passed")
+    );
 }
 
 #[test]
@@ -669,43 +671,46 @@ agent:
 "#,
     )
     .unwrap();
-    fixture.write_run_record(run_id, json!({
-        "schema_version": "runs/v1",
-        "run_id": run_id,
-        "status": "queued",
-        "phase": "queued",
-        "stop_reason": null,
-        "task_name": "stop-bet",
-        "task_path": fixture.repo_dir.join(".codexctl/tasks/stop.yaml").display().to_string(),
-        "repo_root": fixture.repo_dir.display().to_string(),
-        "profile": null,
-        "auth_mode": null,
-        "iteration_count": 0,
-        "started_at": "2026-04-14T01:00:00Z",
-        "updated_at": "2026-04-14T01:00:00Z",
-        "finished_at": null,
-        "implementation_status": "pending",
-        "review_status": "pending",
-        "repo_state": {
-            "is_git_repo": false,
-            "is_dirty": false,
-            "is_detached_head": false
-        },
-        "latest_validation": {
-            "status": null,
-            "passed": 0,
-            "failed": 0,
-            "timed_out": 0,
-            "errors": 0
-        },
-        "latest_review": {
-            "status": null,
-            "passed": 0,
-            "failed": 0,
-            "timed_out": 0,
-            "errors": 0
-        }
-    }));
+    fixture.write_run_record(
+        run_id,
+        json!({
+            "schema_version": "runs/v1",
+            "run_id": run_id,
+            "status": "queued",
+            "phase": "queued",
+            "stop_reason": null,
+            "task_name": "stop-bet",
+            "task_path": fixture.repo_dir.join(".codexctl/tasks/stop.yaml").display().to_string(),
+            "repo_root": fixture.repo_dir.display().to_string(),
+            "profile": null,
+            "auth_mode": null,
+            "iteration_count": 0,
+            "started_at": "2026-04-14T01:00:00Z",
+            "updated_at": "2026-04-14T01:00:00Z",
+            "finished_at": null,
+            "implementation_status": "pending",
+            "review_status": "pending",
+            "repo_state": {
+                "is_git_repo": false,
+                "is_dirty": false,
+                "is_detached_head": false
+            },
+            "latest_validation": {
+                "status": null,
+                "passed": 0,
+                "failed": 0,
+                "timed_out": 0,
+                "errors": 0
+            },
+            "latest_review": {
+                "status": null,
+                "passed": 0,
+                "failed": 0,
+                "timed_out": 0,
+                "errors": 0
+            }
+        }),
+    );
     fs::write(run_dir.join(".stop"), "").unwrap();
 
     let output = fixture
@@ -781,7 +786,11 @@ impl CliFixture {
     fn write_run_record(&self, run_id: &str, value: Value) {
         let run_dir = self.config_dir.join("runs").join(run_id);
         fs::create_dir_all(&run_dir).unwrap();
-        fs::write(run_dir.join("run.json"), serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+        fs::write(
+            run_dir.join("run.json"),
+            serde_json::to_vec_pretty(&value).unwrap(),
+        )
+        .unwrap();
     }
 
     fn latest_run_id(&self) -> Option<String> {
@@ -792,17 +801,31 @@ impl CliFixture {
             .filter(|entry| entry.path().is_dir())
             .collect();
         entries.sort_by_key(|entry| entry.file_name());
-        entries.last().map(|entry| entry.file_name().to_string_lossy().to_string())
+        entries
+            .last()
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
     }
 
     fn last_run_report(&self) -> Option<String> {
         let run_id = self.latest_run_id()?;
-        fs::read_to_string(self.config_dir.join("runs").join(run_id).join("final-report.md")).ok()
+        fs::read_to_string(
+            self.config_dir
+                .join("runs")
+                .join(run_id)
+                .join("final-report.md"),
+        )
+        .ok()
     }
 
     fn last_run_events(&self) -> Option<String> {
         let run_id = self.latest_run_id()?;
-        fs::read_to_string(self.config_dir.join("runs").join(run_id).join("events.jsonl")).ok()
+        fs::read_to_string(
+            self.config_dir
+                .join("runs")
+                .join(run_id)
+                .join("events.jsonl"),
+        )
+        .ok()
     }
 
     fn init_git_repo(&self) {
