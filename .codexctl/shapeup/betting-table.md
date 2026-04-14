@@ -20,6 +20,10 @@ This workstream targets:
 | 02 | Safe Unattended Execution | 2-3 weeks | 01 | Approved after Bet 01 review | Hardens stop/recovery/profile safety and optionally adds worktree mode if appetite allows |
 | 03 | Operator Feedback and Review Gates | 2 weeks | 02 | Approved after Bet 02 review | Adds distinct review checks, generic notifications, and stronger operator-facing summaries |
 
+## Contract references
+
+- Bet 01 contract freeze: `.codexctl/shapeup/contracts/bet-01-contract-freeze.md`
+
 ## Deferred capabilities
 
 Important but deferred:

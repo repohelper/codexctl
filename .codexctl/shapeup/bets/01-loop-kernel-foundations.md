@@ -5,6 +5,7 @@ Appetite: 6 weeks
 Cycle fit: Recommended first bet
 Depends on: None
 Build approval: Approved
+Contract freeze: `.codexctl/shapeup/contracts/bet-01-contract-freeze.md`
 
 ## Problem
 
