@@ -39,3 +39,4 @@ lcov.info
 
 # Local data (user-specific)
 /.local/
+.codexctl/
