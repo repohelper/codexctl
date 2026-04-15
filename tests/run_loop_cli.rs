@@ -352,6 +352,43 @@ agent:
 
 #[test]
 #[serial]
+fn run_loop_allows_initial_start_when_only_codexctl_files_are_dirty() {
+    let fixture = CliFixture::new();
+    fixture.init_git_repo();
+
+    let task_path = fixture.write_task(
+        "shapeup-bet-planning-only.yaml",
+        r#"
+type: codexctl-bet/v1
+name: planning-only-bet
+appetite: 1_week
+objective: Allow unattended execution when only repo-local planning files are dirty
+bounded_contexts:
+  - Run Orchestration
+success_signal: The run succeeds even though .codexctl files are still uncommitted
+no_gos:
+  - Do not ignore non-.codexctl dirty files.
+acceptance_checks:
+  - test -f planning-only.txt
+agent:
+  command:
+    - bash
+    - -lc
+    - printf 'ok\n' > planning-only.txt
+"#,
+    );
+
+    fixture
+        .command()
+        .args(["run-loop", "--task", task_path.to_str().unwrap(), "--json"])
+        .assert()
+        .success();
+
+    assert!(fixture.repo_dir.join("planning-only.txt").exists());
+}
+
+#[test]
+#[serial]
 fn run_loop_records_detached_head_repo_state() {
     let fixture = CliFixture::new();
     fixture.init_git_repo();
@@ -589,6 +626,51 @@ agent:
 
     let events = fixture.last_run_events().unwrap();
     assert!(events.contains("\"event_type\":\"notify_failed\""));
+}
+
+#[test]
+#[serial]
+fn run_loop_notify_timeout_does_not_mask_success() {
+    let fixture = CliFixture::new();
+    let task_path = fixture.write_task(
+        "notify-timeout.yaml",
+        r#"
+type: codexctl-bet/v1
+name: notify-timeout-bet
+appetite: 1_week
+objective: Continue even when the notify hook times out
+bounded_contexts:
+  - Run Ledger
+success_signal: The run succeeds and records the notify timeout in the event log
+no_gos:
+  - Do not let stalled notification hooks block unattended completion.
+acceptance_checks:
+  - true
+agent:
+  command:
+    - bash
+    - -lc
+    - true
+"#,
+    );
+
+    fixture
+        .command()
+        .env("CODEXCTL_NOTIFY_TIMEOUT_SECONDS", "1")
+        .args([
+            "run-loop",
+            "--task",
+            task_path.to_str().unwrap(),
+            "--notify-cmd",
+            "sleep 2",
+            "--json",
+        ])
+        .assert()
+        .success();
+
+    let events = fixture.last_run_events().unwrap();
+    assert!(events.contains("\"event_type\":\"notify_failed\""));
+    assert!(events.contains("timed out"));
 }
 
 #[test]

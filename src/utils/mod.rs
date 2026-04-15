@@ -7,6 +7,7 @@ pub mod files;
 pub mod migrate;
 pub mod profile;
 pub mod runs;
+pub mod shapeup;
 pub mod task;
 pub mod transaction;
 pub mod validate;

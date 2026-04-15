@@ -63,6 +63,9 @@ Use it when you need to:
 - ✅ **Verify** - Validate all profiles' authentication status
 - 🌳 **Concurrent Sessions** - Use multiple accounts in parallel
 - 🏃 **CI/CD Integration** - Run with specific credentials in pipelines
+- 🔁 **Outer Loop Execution** - Run shaped bets until deterministic checks pass
+- 🧾 **Run Ledger** - Persist and inspect unattended run state
+- 🧭 **Shape Up Authoring** - Scaffold and lint opinionated bet specs under `.codexctl/tasks/`
 
 ### Developer Experience
 - 🖥️ **Cross-Platform** - macOS, Linux, Windows (WSL2)
@@ -135,6 +138,11 @@ codexctl delete <name>            Delete a saved profile
 codexctl status                   Show current profile status
 codexctl usage                    Show plan claims and API quota context
 codexctl verify                   Verify all profiles' authentication status
+codexctl validate                 Run deterministic checks from a bet spec or CLI flags
+codexctl run-loop                 Execute one shaped bet in an unattended outer loop
+codexctl runs                     Inspect persisted run records
+codexctl shapeup init-bet         Scaffold a shaped bet spec under .codexctl/tasks/
+codexctl shapeup lint             Lint bet specs against the Shape Up + DDD model
 codexctl backup                   Create a backup of current profile
 codexctl run --profile <name> -- <cmd>
                                   Run a command with a specific profile
@@ -219,6 +227,43 @@ codexctl usage --json
 codexctl usage --all --json
 codexctl verify --json
 codexctl doctor --json
+codexctl validate --task .codexctl/tasks/shapeup-bet-auth-ux.yaml --json
+codexctl run-loop --task .codexctl/tasks/shapeup-bet-auth-ux.yaml --json
+codexctl runs --latest --json
+codexctl shapeup lint --json
+```
+
+---
+
+## Shape Up Bet Workflow
+
+Use the local `.codexctl/tasks/` directory as the repo-owned control plane for shaped work:
+
+```bash
+# Scaffold a new bet spec
+codexctl shapeup init-bet "Auth UX hardening"
+
+# Lint all bet specs in the repo
+codexctl shapeup lint
+
+# Run deterministic checks only
+codexctl validate --task .codexctl/tasks/shapeup-bet-auth-ux-hardening.yaml
+
+# Execute the full unattended loop
+codexctl run-loop --task .codexctl/tasks/shapeup-bet-auth-ux-hardening.yaml
+
+# Inspect the latest run
+codexctl runs --latest
+```
+
+`codexctl run-loop` will refuse an initial unattended start if the repo has dirty changes outside `.codexctl/`. Repo-local planning changes under `.codexctl/` are allowed. Notification hooks are optional via `--notify-cmd`, and `CODEXCTL_NOTIFY_TIMEOUT_SECONDS` caps how long a notify command can stall before it is recorded as `notify_failed`.
+
+Example:
+
+```bash
+codexctl run-loop \
+  --task .codexctl/tasks/shapeup-bet-auth-ux-hardening.yaml \
+  --notify-cmd 'cat > run-notify.json'
 ```
 
 ---

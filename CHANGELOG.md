@@ -4,8 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added `codexctl shapeup init-bet` to scaffold repo-local shaped bet specs under `.codexctl/tasks/`.
+- Added `codexctl shapeup lint` to enforce the current Shape Up + DDD bet model, including bounded-context checks and placeholder detection.
+
 ### Changed
 
+- Added README coverage for the Shape Up bet authoring and unattended loop workflow.
+- Relaxed initial `run-loop` dirty-repo blocking so repo-local `.codexctl/` planning changes do not block unattended starts.
+- Added a timeout-backed failure path for `run-loop --notify-cmd`; stalled notify hooks are now recorded as `notify_failed` instead of hanging the run.
 - Removed the unused `aes-gcm` release-candidate dependency and kept profile encryption on the stable `age` stack already used by the codebase.
 - Refreshed the Rust lockfile to current compatible transitive versions.
 - Updated release automation to the current `softprops/action-gh-release@v3` action and aligned the npm audit workflow to Node.js 24.

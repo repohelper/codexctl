@@ -31,6 +31,7 @@ const RUN_CANCELLED_EXIT_CODE: u8 = 22;
 const RUN_STATE_EXIT_CODE: u8 = 23;
 const RUN_PROFILE_EXIT_CODE: u8 = 24;
 const RUN_AGENT_EXIT_CODE: u8 = 25;
+const DEFAULT_NOTIFY_TIMEOUT_SECONDS: u64 = 10;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn execute(
@@ -313,7 +314,7 @@ async fn execute_loop(
     ensure_resume_integrity(run_dir, record)?;
     record.repo_state = RepoStateSnapshot::from(&repo_state);
 
-    if is_initial_start && repo_state.is_dirty {
+    if is_initial_start && repo_state.has_blocking_dirty_paths() {
         record.status = RunStatus::Blocked;
         record.phase = RunPhase::Finalized;
         record.stop_reason = Some("dirty_working_tree".to_string());
@@ -326,8 +327,12 @@ async fn execute_loop(
                 timestamp: Utc::now(),
                 event_type: "blocked".to_string(),
                 iteration: None,
-                message: "Refusing to start unattended work from a dirty working tree".to_string(),
-                payload: None,
+                message:
+                    "Refusing to start unattended work from a dirty working tree outside .codexctl/"
+                        .to_string(),
+                payload: Some(json!({
+                    "blocking_dirty_paths": repo_state.blocking_dirty_paths,
+                })),
             },
         )?;
         tokio::fs::write(
@@ -1353,10 +1358,15 @@ async fn notify_hook(
                 .await
                 .context("Failed to send notify payload")?;
         }
-        let status = child
-            .wait()
-            .await
-            .with_context(|| format!("Failed to wait for notify command: {notify_cmd}"))?;
+        let timeout_seconds = notify_timeout_seconds();
+        let status = match timeout(Duration::from_secs(timeout_seconds), child.wait()).await {
+            Ok(result) => result
+                .with_context(|| format!("Failed to wait for notify command: {notify_cmd}"))?,
+            Err(_) => {
+                let _ = child.kill().await;
+                anyhow::bail!("Notify command timed out after {timeout_seconds}s");
+            }
+        };
         if !status.success() {
             anyhow::bail!("Notify command exited with code {:?}", status.code());
         }
@@ -1378,6 +1388,14 @@ async fn notify_hook(
     }
 
     Ok(())
+}
+
+fn notify_timeout_seconds() -> u64 {
+    std::env::var("CODEXCTL_NOTIFY_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_NOTIFY_TIMEOUT_SECONDS)
 }
 
 fn shell_command_for(command: &str) -> Command {
@@ -1500,6 +1518,14 @@ struct RepoState {
     is_git_repo: bool,
     is_dirty: bool,
     is_detached_head: bool,
+    dirty_paths: Vec<String>,
+    blocking_dirty_paths: Vec<String>,
+}
+
+impl RepoState {
+    fn has_blocking_dirty_paths(&self) -> bool {
+        !self.blocking_dirty_paths.is_empty()
+    }
 }
 
 impl From<&RepoState> for RepoStateSnapshot {
@@ -1529,18 +1555,27 @@ async fn inspect_repo_state(repo_root: &Path) -> RepoState {
             is_git_repo,
             is_dirty: false,
             is_detached_head: false,
+            dirty_paths: Vec::new(),
+            blocking_dirty_paths: Vec::new(),
         };
     }
 
     let dirty_output = Command::new("git")
-        .args(["status", "--porcelain"])
+        .args(["status", "--porcelain", "--untracked-files=all"])
         .current_dir(repo_root)
         .output()
         .await
         .ok();
-    let is_dirty = dirty_output
+    let dirty_paths = dirty_output
         .as_ref()
-        .is_some_and(|output| !String::from_utf8_lossy(&output.stdout).trim().is_empty());
+        .map(|output| parse_dirty_paths(&String::from_utf8_lossy(&output.stdout)))
+        .unwrap_or_default();
+    let is_dirty = !dirty_paths.is_empty();
+    let blocking_dirty_paths = dirty_paths
+        .iter()
+        .filter(|path| !is_shapeup_internal_path(path))
+        .cloned()
+        .collect::<Vec<_>>();
 
     let detached_status = Command::new("git")
         .args(["symbolic-ref", "--quiet", "HEAD"])
@@ -1556,6 +1591,8 @@ async fn inspect_repo_state(repo_root: &Path) -> RepoState {
         is_git_repo,
         is_dirty,
         is_detached_head,
+        dirty_paths,
+        blocking_dirty_paths,
     }
 }
 
@@ -1569,12 +1606,47 @@ fn print_repo_warnings(repo_state: &RepoState) {
     }
 
     if repo_state.is_dirty {
-        eprintln!(
-            "{} Working tree is dirty; run traceability is reduced",
-            "⚠".yellow()
-        );
+        if repo_state.has_blocking_dirty_paths() {
+            eprintln!(
+                "{} Working tree has {} dirty path(s) outside .codexctl/; unattended start will be blocked",
+                "⚠".yellow(),
+                repo_state.blocking_dirty_paths.len()
+            );
+        } else {
+            eprintln!(
+                "{} Working tree has {} dirty path(s) only under .codexctl/; unattended start is allowed",
+                "⚠".yellow(),
+                repo_state.dirty_paths.len()
+            );
+        }
     }
     if repo_state.is_detached_head {
         eprintln!("{} Repository is in detached HEAD state", "⚠".yellow());
     }
+}
+
+fn parse_dirty_paths(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            if line.len() < 4 {
+                return None;
+            }
+            let candidate = line[3..].trim();
+            if candidate.is_empty() {
+                return None;
+            }
+            let path = candidate
+                .split(" -> ")
+                .last()
+                .unwrap_or(candidate)
+                .trim_matches('"')
+                .to_string();
+            if path.is_empty() { None } else { Some(path) }
+        })
+        .collect()
+}
+
+fn is_shapeup_internal_path(path: &str) -> bool {
+    path == ".codexctl" || path.starts_with(".codexctl/")
 }

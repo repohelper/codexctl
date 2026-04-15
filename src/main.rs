@@ -10,7 +10,7 @@ use tracing::{debug, info};
 mod commands;
 mod utils;
 
-use commands::{backup, delete, list, load, run, run_loop, runs, save, status, validate};
+use commands::{backup, delete, list, load, run, run_loop, runs, save, shapeup, status, validate};
 use utils::config::Config;
 
 /// `CodexCTL` - Codex Controller
@@ -190,6 +190,13 @@ pub enum Commands {
         notify_cmd: Option<String>,
     },
 
+    /// Shape Up planning helpers for bet authoring and linting
+    Shapeup {
+        /// Planning helper subcommand to run
+        #[command(subcommand)]
+        command: ShapeupCommands,
+    },
+
     /// Inspect persisted run records for shaped bet executions
     Runs {
         /// Show only the latest run
@@ -321,6 +328,41 @@ pub enum ShellType {
     Elvish,
 }
 
+/// Shape Up planning subcommands
+#[derive(Subcommand, Debug, Clone)]
+pub enum ShapeupCommands {
+    /// Create a new shaped bet spec scaffold under .codexctl/tasks/
+    InitBet {
+        /// Human-readable bet name
+        name: String,
+        /// Fixed appetite in Shape Up format, e.g. 1_week or 3_days
+        #[arg(long, default_value = "1_week")]
+        appetite: String,
+        /// Bounded contexts touched by this bet
+        #[arg(long = "bounded-context")]
+        bounded_contexts: Vec<String>,
+        /// Overwrite an existing scaffold
+        #[arg(short, long)]
+        force: bool,
+        /// Print the scaffold instead of writing it
+        #[arg(long)]
+        stdout: bool,
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Lint one or more shaped bet specs for structure and methodology fit
+    Lint {
+        /// Specific bet spec to lint. Defaults to all YAML files under .codexctl/tasks/
+        #[arg(long, value_hint = ValueHint::FilePath)]
+        task: Option<PathBuf>,
+        /// Emit structured JSON output
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 #[tokio::main]
 #[allow(clippy::too_many_lines)]
 async fn main() -> ExitCode {
@@ -449,6 +491,31 @@ async fn try_main() -> Result<()> {
             )
             .await?;
         }
+        Commands::Shapeup { command } => match command {
+            ShapeupCommands::InitBet {
+                name,
+                appetite,
+                bounded_contexts,
+                force,
+                stdout,
+                json,
+            } => {
+                shapeup::init_bet(
+                    config,
+                    name,
+                    appetite,
+                    bounded_contexts,
+                    force,
+                    stdout,
+                    json,
+                    cli.quiet,
+                )
+                .await?;
+            }
+            ShapeupCommands::Lint { task, json } => {
+                shapeup::lint(config, task, json, cli.quiet).await?;
+            }
+        },
         Commands::Runs {
             latest,
             id,

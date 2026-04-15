@@ -14,6 +14,7 @@ pub mod run_loop;
 pub mod runs;
 pub mod save;
 pub mod setup;
+pub mod shapeup;
 pub mod status;
 pub mod switch;
 pub mod usage;
